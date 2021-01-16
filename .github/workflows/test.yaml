@@ -1,0 +1,44 @@
+name: test
+
+on: [push]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: [3.9]
+
+    env:
+      AWS_ACCESS_KEY_ID: foo
+      AWS_SECRET_ACCESS_KEY: bar
+      AWS_DEFAULT_REGION: us-east-1
+
+    steps:
+
+    - uses: actions/checkout@v2
+
+    - name: Start LocalStack
+      run: docker-compose --file .github/docker-compose.yml up --detach
+
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Install aws-cli
+      run: pip3 install awscli
+
+    - name: Install Poetry
+      run: pip3 install poetry
+
+    - name: Install project dependencies
+      run: poetry install -v
+
+    - name: Make S3 bucket
+      run: aws s3 mb s3://fondat --endpoint-url=http://localhost:4566
+
+    - name: Test project
+      run: poetry run pytest --cov=fondat-aws tests/
