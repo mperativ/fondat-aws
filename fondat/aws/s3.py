@@ -155,6 +155,7 @@ def bucket_resource(
     class Bucket:
         """S3 bucket resource."""
 
+        @operation(security=security)
         async def get(
             self, prefix: str = None, limit: int = None, cursor: bytes = None
         ) -> Page:
