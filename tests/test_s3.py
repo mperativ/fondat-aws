@@ -24,6 +24,7 @@ async def client():
     async with Client(config) as client:
         yield client
 
+
 async def _delete_all(resource):
     async for key in paginate(resource.get):
         await resource[key].delete()
