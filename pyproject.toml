@@ -8,7 +8,7 @@ target-version = ['py38']
 
 [tool.poetry]
 name = "fondat-aws"
-version = "3.0a2"
+version = "3.0a3"
 description = "Fondat package for Amazon Web Services."
 readme = "README.md"
 authors = ["fondat-aws authors"]
@@ -28,7 +28,7 @@ packages = [
 [tool.poetry.dependencies]
 aiobotocore = "^1.1"
 python = "^3.9"
-fondat-core = "^3.0a16"
+fondat-core = "^3.0b1"
 
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"
