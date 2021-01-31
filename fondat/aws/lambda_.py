@@ -34,9 +34,7 @@ def http_function(handler: Awaitable):
             for key, value in event["queryStringParameters"].items():
                 request.query[key] = value
             request.body = (
-                b64decode(event["body"])
-                if event["isBase64Encoded"]
-                else event["body"].encode()
+                b64decode(event["body"]) if event["isBase64Encoded"] else event["body"].encode()
             )
             response = await handler(request)
             headers = response.headers

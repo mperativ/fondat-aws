@@ -2,10 +2,10 @@ import pytest
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from fondat.aws import Config
-from fondat.aws.s3 import Client, bucket_resource
+from fondat.aws import Client, Config
+from fondat.aws.s3 import bucket_resource
 from fondat.error import NotFoundError
-from fondat.paging import paginate
+from fondat.pagination import paginate
 from typing import Optional, TypedDict
 
 
@@ -21,7 +21,7 @@ config = Config(
 
 @pytest.fixture(scope="function")
 async def client():
-    async with Client(config) as client:
+    async with Client(service_name="s3", config=config) as client:
         yield client
 
 

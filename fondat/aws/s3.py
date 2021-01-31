@@ -1,66 +1,19 @@
 """Fondat module for Amazon S3."""
 
-import aiobotocore
-import dataclasses
+import fondat.codec
+import fondat.pagination
 import logging
 
 from collections.abc import Iterable
-from urllib.parse import quote, unquote
-from fondat.aws import Config
-from fondat.codec import Binary, JSON, String, get_codec
+from fondat.aws import Client
+from fondat.codec import Binary, String
 from fondat.error import InternalServerError, NotFoundError
-from fondat.paging import make_page_dataclass
 from fondat.resource import resource, operation
 from fondat.security import SecurityRequirement
-from typing import Any, Optional
+from typing import Any
 
 
 _logger = logging.getLogger(__name__)
-
-
-def _asdict(config):
-    return {k: v for k, v in dataclasses.asdict(config).items() if v is not None}
-
-
-class Client:
-    """
-    S3 client class.
-
-    Parameter:
-    • config: AWS configuration object to override environment
-    """
-
-    def __init__(self, config: Config = None):
-        self.config = config
-        self.client = None
-
-    async def open(self) -> None:
-        """Open S3 client."""
-        if self.client:
-            raise RuntimeError("S3 client is already open")
-        session = aiobotocore.get_session()
-        client = session.create_client(
-            "s3", **_asdict(self.config) if self.config else {}
-        )
-        self.client = await client.__aenter__()
-
-    async def close(self) -> None:
-        """Close S3 client."""
-        if self.client:
-            await self.client.__aexit__(None, None, None)
-            self.client = None
-
-    def __getattr__(self, name):
-        if not self.client:
-            raise RuntimeError("S3 client is not open")
-        return getattr(self.client, name)
-
-    async def __aenter__(self):
-        await self.open()
-        return self
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        await self.close()
 
 
 def bucket_resource(
@@ -90,8 +43,11 @@ def bucket_resource(
     • security: security requirements to apply to all operations
     """
 
-    key_codec = get_codec(String, key_type)
-    value_codec = get_codec(Binary, value_type)
+    if client.service_name != "s3":
+        raise TypeError("expecting S3 client")
+
+    key_codec = fondat.codec.get_codec(String, key_type)
+    value_codec = fondat.codec.get_codec(Binary, value_type)
 
     @resource
     class Object:
@@ -149,7 +105,7 @@ def bucket_resource(
         return f"{folder}/{prefix}"
 
     key_offset = len(folder) + 1 if folder else 0
-    Page = make_page_dataclass("Page", str)
+    Page = fondat.pagination.make_page_dataclass("Page", str)
 
     @resource
     class Bucket:
@@ -171,8 +127,7 @@ def bucket_resource(
                 next_token = response.get("NextContinuationToken")
                 page = Page(
                     items=[
-                        content["Key"][key_offset:]
-                        for content in response.get("Contents", ())
+                        content["Key"][key_offset:] for content in response.get("Contents", ())
                     ],
                     cursor=next_token.encode() if next_token else None,
                     remaining=None,
