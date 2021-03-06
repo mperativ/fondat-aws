@@ -191,7 +191,7 @@ python-versions = "*"
 
 [[package]]
 name = "fondat-core"
-version = "3.0b33"
+version = "3.0b34"
 description = "A foundation for Python resource-oriented applications."
 category = "main"
 optional = false
@@ -641,8 +641,8 @@ filelock = [
     {file = "filelock-3.0.12.tar.gz", hash = "sha256:18d82244ee114f543149c66a6e0c14e9c4f8a1044b5cdaadd0f82159d6a6ff59"},
 ]
 fondat-core = [
-    {file = "fondat-core-3.0b33.tar.gz", hash = "sha256:a1b038e5c99064f2ee490469f4fe148e4c26c3c252c7d424f419b7054e4e82c9"},
-    {file = "fondat_core-3.0b33-py3-none-any.whl", hash = "sha256:4ef8fa80c0c5f7f22202d8f672cbe0a59e467803af39e5db1ace7ce5af8b3879"},
+    {file = "fondat-core-3.0b34.tar.gz", hash = "sha256:27e3bab0dd59a90596c275c9f4e7c3ce4e1e36089ca755c103333bb10c6bfbf0"},
+    {file = "fondat_core-3.0b34-py3-none-any.whl", hash = "sha256:2feb1f3f916e261cadfe18b806d6f497771c35df5efd56c0683e0ad39250d57e"},
 ]
 identify = [
     {file = "identify-2.1.0-py2.py3-none-any.whl", hash = "sha256:2a5fdf2f5319cc357eda2550bea713a404392495961022cf2462624ce62f0f46"},
