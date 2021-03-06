@@ -37,8 +37,5 @@ jobs:
     - name: Install project dependencies
       run: poetry install -v
 
-    - name: Make S3 bucket
-      run: aws s3 mb s3://fondat --endpoint-url=http://localhost:4566
-
     - name: Test project
       run: poetry run pytest --cov=fondat-aws tests/

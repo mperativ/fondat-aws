@@ -7,7 +7,7 @@ from fondat.aws.s3 import bucket_resource
 from fondat.error import NotFoundError
 from fondat.pagination import paginate
 from typing import Optional, TypedDict
-
+from uuid import uuid4
 
 pytestmark = pytest.mark.asyncio
 
@@ -25,12 +25,24 @@ async def client():
         yield client
 
 
-async def _delete_all(resource):
-    async for key in paginate(resource.get):
-        await resource[key].delete()
+async def _empty_bucket(client, bucket):
+    while "Contents" in (response := await client.list_objects_v2(Bucket=bucket)):
+        for item in response["Contents"]:
+            await client.delete_object(Bucket=bucket, Key=item["Key"])
 
 
-async def test_crud(client):
+@pytest.fixture(scope="function")
+async def bucket(client):
+    name = str(uuid4())
+    await client.create_bucket(Bucket=name)
+    try:
+        yield name
+    finally:
+        await _empty_bucket(client, name)
+        await client.delete_bucket(Bucket=name)
+
+
+async def test_crud(client, bucket):
     @dataclass
     class DC:
         id: str
@@ -47,11 +59,10 @@ async def test_crud(client):
 
     resource = bucket_resource(
         client=client,
-        bucket="fondat",
+        bucket=bucket,
         key_type=str,
         value_type=DC,
     )
-    await _delete_all(resource)
     id = "7af8410d-ffa3-4598-bac8-9ac0e488c9df"
     value = DC(
         id=id,
@@ -83,17 +94,15 @@ async def test_crud(client):
     await r.delete()
     with pytest.raises(NotFoundError):
         await r.get()
-    await _delete_all(resource)
 
 
-async def test_pagination(client):
+async def test_pagination(client, bucket):
     resource = bucket_resource(
         client=client,
-        bucket="fondat",
+        bucket=bucket,
         key_type=str,
         value_type=str,
     )
-    await _delete_all(resource)
     assert len([v async for v in paginate(resource.get)]) == 0
     for n in range(0, 11):
         await resource[f"{n:04d}"].put("value")
@@ -102,18 +111,16 @@ async def test_pagination(client):
     assert len(page.items) == 10
     page = await resource.get(limit=10, cursor=page.cursor)
     assert len(page.items) == 1
-    await _delete_all(resource)
 
 
-async def test_folder(client):
+async def test_folder(client, bucket):
     resource = bucket_resource(
         client=client,
-        bucket="fondat",
+        bucket=bucket,
         folder="folder",
         key_type=str,
         value_type=str,
     )
-    await _delete_all(resource)
     assert len([v async for v in paginate(resource.get)]) == 0
     count = 10
     for n in range(0, count):
@@ -121,4 +128,3 @@ async def test_folder(client):
     assert len([v async for v in paginate(resource.get)]) == count
     for n in range(0, count):
         assert await resource[f"{n:04d}"].get() == str(n)
-    await _delete_all(resource)

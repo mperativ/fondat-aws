@@ -1,4 +1,4 @@
-"""Fondat module for Amazon S3."""
+"""Fondat module for Amazon Simple Storage Service (S3)."""
 
 import fondat.codec
 import fondat.pagination
