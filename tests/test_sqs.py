@@ -29,8 +29,7 @@ async def client():
 
 @pytest.fixture(scope="function")
 async def queue_url(client) -> str:
-    result = await client.create_queue(QueueName=str(uuid4()))
-    url = result["QueueUrl"]
+    url = (await client.create_queue(QueueName=str(uuid4())))["QueueUrl"]
     try:
         yield url
     finally:
@@ -41,8 +40,10 @@ async def test_send_receive(client, queue_url):
     @dataclass
     class DC:
         n: int
+
     queue = queue_resource(client=client, queue_url=queue_url, message_type=DC)
     for n in range(0, 3):
         await queue.send(DC(n=n))
     for n in range(0, 3):
         assert await queue.receive() == DC(n=n)
+    assert await queue.receive() is None

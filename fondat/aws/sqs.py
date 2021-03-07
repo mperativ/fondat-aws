@@ -42,7 +42,7 @@ def queue_resource(
 
         @mutation(security=security)
         async def send(self, message: message_type) -> None:
-            """Send a message."""
+            """Send a message to the queue."""
             try:
                 await client.send_message(QueueUrl=queue_url, MessageBody=codec.encode(message))
             except Exception as e:
@@ -50,9 +50,16 @@ def queue_resource(
                 raise InternalServerError from e
 
         @mutation(security=security)
-        async def receive(self, wait_time_seconds: int = 0) -> Optional[message_type]:
+        async def receive(
+            self,
+            wait_time_seconds: Annotated[int, "number of seconds to wait for a message"] = 0,
+        ) -> Optional[message_type]:
             """Return the next message from the queue."""
-            response = await client.receive_message(QueueUrl=queue_url, WaitTimeSeconds=wait_time_seconds)
+            response = await client.receive_message(
+                QueueUrl=queue_url, WaitTimeSeconds=wait_time_seconds
+            )
+            if "Messages" not in response:
+                return None
             try:
                 result = codec.decode(response["Messages"][0]["Body"])
             except Exception as e:
