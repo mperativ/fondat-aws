@@ -51,16 +51,16 @@ def cloudwatch_resource(
         @cloudwatch_resource
         async def put_alarm(self, measurement: Measurement) :
             response = client.put_metric_alarm(
-            AlarmName='Web_Server_CPU_Utilization',
+            AlarmName=measurement.type+' Value',
             ComparisonOperator='GreaterThanThreshold',
             EvaluationPeriods=1,
             MetricName='CPUUtilization',
-            Namespace='AWS/EC2',
+            Namespace=measurement.type,
             Period=60,
             Statistic='Average',
             Threshold=70.0,
             ActionsEnabled=False,
-            AlarmDescription='Alarm when server CPU exceeds 70%',
+            AlarmDescription='',
             Dimensions=[
                 {
                 'Name': 'InstanceId',
