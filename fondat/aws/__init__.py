@@ -3,12 +3,12 @@
 import aiobotocore
 import dataclasses
 
-from fondat.types import dataclass
+from fondat.types import datacls
 from typing import Annotated as A, Optional
 
 
 # fmt: off
-@dataclass
+@datacls
 class Config:
     aws_access_key_id: A[Optional[str], "AWS access key ID"]
     aws_secret_access_key: A[Optional[str], "AWS secret access key"]
