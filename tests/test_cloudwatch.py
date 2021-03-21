@@ -23,6 +23,7 @@ async def client():
     async with Client(service_name="cloudwatch", config=config) as client:
         yield client
 
+
 @pytest.fixture(scope="function")
 async def metirc_type(client):
     _now = lambda: datetime.now()
@@ -30,5 +31,5 @@ async def metirc_type(client):
     yield type_name
 
 
-async def test_put_metric (client, metirc_type):
+async def test_put_metric(client, metirc_type):
     assert metirc_type.name == "counter"

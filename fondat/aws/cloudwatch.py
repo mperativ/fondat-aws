@@ -28,46 +28,34 @@ def cloudwatch_resource(
 
     @cloudwatch_resource
     class Metric:
-
         @operation(security=security)
-        async def put_metric(self, measurement: Measurement) :
+        async def put_metric(self, measurement: Measurement):
             response = client.put_metric_data(
-            MetricData = [
-                {
-                    'MetricName': measurement.type,
-                    'Dimensions': [
-                        {
-                            'Name': measurement.type,
-                            'Value': measurement.value 
-                        },
-                    ]
-                },
-            ],
-            Namespace = measurement
+                MetricData=[
+                    {
+                        "MetricName": measurement.type,
+                        "Dimensions": [
+                            {"Name": measurement.type, "Value": measurement.value},
+                        ],
+                    },
+                ],
+                Namespace=measurement,
             )
 
             return response
 
         @cloudwatch_resource
-        async def put_alarm(self, measurement: Measurement) :
+        async def put_alarm(self, measurement: Measurement):
             response = client.put_metric_alarm(
-            AlarmName=measurement.type+' Value',
-            ComparisonOperator='GreaterThanThreshold',
-            EvaluationPeriods=1,
-            MetricName='CPUUtilization',
-            Namespace=measurement.type,
-            Period=60,
-            Statistic='Average',
-            Threshold=70.0,
-            ActionsEnabled=False,
-            AlarmDescription='',
-            Dimensions=[
-                {
-                'Name': 'InstanceId',
-                'Value': 'INSTANCE_ID'
-                },
-            ],
-            Unit='Seconds'
+                AlarmName=measurement.type + " Value",
+                ComparisonOperator="GreaterThanThreshold",
+                EvaluationPeriods=1,
+                MetricName=measurement.type,
+                Namespace=measurement.type,
+                Period=60,
+                Statistic="Average",
+                Threshold=70.0,
+                ActionsEnabled=False,
             )
 
             return response
