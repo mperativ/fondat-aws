@@ -42,4 +42,3 @@ async def test_put_alarm(client, metirc_type, threshold=1):
     assert metirc_type.type == "counter"
     cw = cloudwatch_resource(client=client)
     cw.put_alarm(metirc_type, threshold)
-

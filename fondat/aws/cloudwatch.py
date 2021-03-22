@@ -55,5 +55,4 @@ def cloudwatch_resource(
                 ActionsEnabled=False,
             )
 
-        
     return Metric()
