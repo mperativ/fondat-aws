@@ -5,7 +5,7 @@ from datetime import date, datetime
 from fondat.aws import Client, Config
 from fondat.aws.cloudwatch import cloudwatch_resource
 from fondat.error import NotFoundError
-from fondat.monitoring import Counter, Gauge, Absolute
+from fondat.monitoring import Measurement, Counter, Gauge, Absolute
 
 pytestmark = pytest.mark.asyncio
 
@@ -27,9 +27,19 @@ async def client():
 @pytest.fixture(scope="function")
 async def metirc_type(client):
     _now = lambda: datetime.now()
-    type_name = Counter(_now())
+    _tags = {"name": "test"}
+    type_name = Measurement(tags=_tags, timestamp=_now(), type="counter", value=1)
     yield type_name
 
 
 async def test_put_metric(client, metirc_type):
-    assert metirc_type.name == "counter"
+    assert metirc_type.type == "counter"
+    cw = cloudwatch_resource(client=client)
+    cw.put_metric(metirc_type)
+
+
+async def test_put_alarm(client, metirc_type, threshold=1):
+    assert metirc_type.type == "counter"
+    cw = cloudwatch_resource(client=client)
+    cw.put_alarm(metirc_type, threshold)
+

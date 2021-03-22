@@ -10,7 +10,7 @@ from fondat.error import InternalServerError, NotFoundError
 from fondat.resource import resource, operation
 from fondat.security import SecurityRequirement
 from typing import Any
-from fondat.monitoring import Counter, Gauge, Absolute
+from fondat.monitoring import Measurement, Counter, Gauge, Absolute
 
 
 _logger = logging.getLogger(__name__)
@@ -19,18 +19,17 @@ _logger = logging.getLogger(__name__)
 def cloudwatch_resource(
     *,
     client: Client,
-    message_type: type,
     security: Iterable[SecurityRequirement] = None,
 ):
 
     if client.service_name != "cloudwatch":
         raise TypeError("expecting cloudwatch client")
 
-    @cloudwatch_resource
+    @resource
     class Metric:
         @operation(security=security)
         async def put_metric(self, measurement: Measurement):
-            response = client.put_metric_data(
+            client.put_metric_data(
                 MetricData=[
                     {
                         "MetricName": measurement.type,
@@ -42,11 +41,9 @@ def cloudwatch_resource(
                 Namespace=measurement,
             )
 
-            return response
-
-        @cloudwatch_resource
-        async def put_alarm(self, measurement: Measurement):
-            response = client.put_metric_alarm(
+        @operation(security=security)
+        async def put_alarm(self, measurement: Measurement, threshold: int):
+            client.put_metric_alarm(
                 AlarmName=measurement.type + " Value",
                 ComparisonOperator="GreaterThanThreshold",
                 EvaluationPeriods=1,
@@ -54,8 +51,9 @@ def cloudwatch_resource(
                 Namespace=measurement.type,
                 Period=60,
                 Statistic="Average",
-                Threshold=70.0,
+                Threshold=threshold,
                 ActionsEnabled=False,
             )
 
-            return response
+        
+    return Metric()
