@@ -25,20 +25,20 @@ async def client():
 
 
 @pytest.fixture(scope="function")
-async def metirc_type(client):
+async def metric_type(client):
     _now = lambda: datetime.now()
     _tags = {"name": "test"}
     type_name = Measurement(tags=_tags, timestamp=_now(), type="counter", value=1)
     yield type_name
 
 
-async def test_put_metric(client, metirc_type):
-    assert metirc_type.type == "counter"
+async def test_put_metric(client, metric_type):
+    assert metric_type.type == "counter"
     cw = cloudwatch_resource(client=client)
-    cw.put_metric(metirc_type)
+    cw.put_metric(metric_type)
 
 
-async def test_put_alarm(client, metirc_type, threshold=1):
-    assert metirc_type.type == "counter"
+async def test_put_alarm(client, metric_type, threshold=1):
+    assert metric_type.type == "counter"
     cw = cloudwatch_resource(client=client)
-    cw.put_alarm(metirc_type, threshold)
+    cw.put_alarm(metric_type, threshold)
