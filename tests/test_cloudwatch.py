@@ -1,7 +1,7 @@
 import pytest
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import datetime, timedelta, timezone
 from fondat.aws import Client, Config
 from fondat.aws.cloudwatch import cloudwatch_resource
 from fondat.error import NotFoundError
@@ -26,7 +26,7 @@ async def client():
 
 @pytest.fixture(scope="function")
 async def metric_type(client):
-    _now = lambda: datetime.now()
+    _now = lambda: datetime.now(tz=timezone.utc)
     _tags = {"name": "test"}
     type_name = Measurement(tags=_tags, timestamp=_now(), type="counter", value=1)
     yield type_name
@@ -34,11 +34,13 @@ async def metric_type(client):
 
 async def test_put_metric(client, metric_type):
     assert metric_type.type == "counter"
+    assert metric_type.tags == {"name": "test"}
     cw = cloudwatch_resource(client=client)
     cw.put_metric(metric_type)
 
 
 async def test_put_alarm(client, metric_type, threshold=1):
     assert metric_type.type == "counter"
+    assert metric_type.tags == {"name": "test"}
     cw = cloudwatch_resource(client=client)
     cw.put_alarm(metric_type, threshold)

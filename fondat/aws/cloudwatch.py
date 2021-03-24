@@ -29,10 +29,10 @@ def cloudwatch_resource(
     class Metric:
         @operation(security=security)
         async def put_metric(self, measurement: Measurement):
-            client.put_metric_data(
+            await client.put_metric_data(
                 MetricData=[
                     {
-                        "MetricName": measurement.type,
+                        "MetricName": measurement.tags,
                         "Dimensions": [
                             {"Name": measurement.type, "Value": measurement.value},
                         ],
@@ -43,7 +43,7 @@ def cloudwatch_resource(
 
         @operation(security=security)
         async def put_alarm(self, measurement: Measurement, threshold: int):
-            client.put_metric_alarm(
+            await client.put_metric_alarm(
                 AlarmName=measurement.type + " Value",
                 ComparisonOperator="GreaterThanThreshold",
                 EvaluationPeriods=1,
