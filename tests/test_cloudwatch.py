@@ -34,13 +34,11 @@ async def metric_type(client):
 
 async def test_put_metric(client, metric_type):
     assert metric_type.type == "counter"
-    assert metric_type.tags == {"name": "test"}
     cw = cloudwatch_resource(client=client)
-    cw.put_metric(metric_type)
+    await cw.put_metric(metric_type)
 
 
 async def test_put_alarm(client, metric_type, threshold=1):
     assert metric_type.type == "counter"
-    assert metric_type.tags == {"name": "test"}
     cw = cloudwatch_resource(client=client)
-    cw.put_alarm(metric_type, threshold)
+    await cw.put_alarm(metric_type, threshold)
