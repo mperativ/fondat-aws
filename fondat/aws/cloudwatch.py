@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from fondat.aws import Client
 from fondat.codec import Binary, String
 from fondat.error import InternalServerError, NotFoundError
-from fondat.resource import resource, operation
+from fondat.resource import resource, operation, mutation
 from fondat.security import SecurityRequirement
 from typing import Any
 from fondat.monitoring import Measurement, Counter, Gauge, Absolute
@@ -27,7 +27,7 @@ def cloudwatch_resource(
 
     @resource
     class Metric:
-        @operation(security=security)
+        @mutation(security=security)
         async def put_metric(self, measurement: Measurement):
             await client.put_metric_data(
                 MetricData=[
@@ -41,7 +41,7 @@ def cloudwatch_resource(
                 Namespace=measurement.type,
             )
 
-        @operation(security=security)
+        @mutation(security=security)
         async def put_alarm(self, measurement: Measurement, threshold: int):
             await client.put_metric_alarm(
                 AlarmName=measurement.type + " Value",
