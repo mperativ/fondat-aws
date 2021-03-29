@@ -130,7 +130,6 @@ class CloudWatchMonitor:
     A monitor that stores all recorded measurements in CloudWatch.
     """
 
-    # now: just do one-to-one (immediately post the metric to AWS cloudwatch)
     # future: collect metrics, send in batches
 
     def __init__(self, client: Client, namespace: str):
@@ -138,5 +137,39 @@ class CloudWatchMonitor:
 
     async def record(self, measurement: Measurement):
         """Record a measurement."""
-        raise NotImplementedError
-        # resource.metrics.post(...)
+
+        if measurement.type == "counter":
+            m = Counter(timestamp=measurement.timestamp)
+            m.record(measurement.value)
+            metric = Metric(
+                name=measurement.tags["name"],
+                dimensions={"Name": measurement.type, "Value": str(m.value)},
+                timestamp=measurement.timestamp,
+                value=float(m.value),
+                unit="Count",
+            )
+        elif measurement.type == "gauge":
+            m = Gauge(timestamp=measurement.timestamp)
+            m.record(measurement.value)
+            metric = Metric(
+                name=measurement.tags["name"],
+                dimensions={"Name": measurement.type, "Value": str(measurement.value)},
+                timestamp=measurement.timestamp,
+                value=Statistics(
+                    count=float(m.count),
+                    sum=float(m.sum),
+                    minimum=float(m.min),
+                    maximum=float(m.max),
+                ),
+            )
+        elif measurement.type == "absolute":
+            m = Absolute(timestamp=measurement.timestamp)
+            m.record(measurement.value)
+            metric = Metric(
+                name=measurement.tags["name"],
+                dimensions={"Name": measurement.type, "Value": str(m.value)},
+                timestamp=measurement.timestamp,
+                value=float(m.value),
+            )
+
+        await self.resource.post(metrics=[metric])
