@@ -63,7 +63,7 @@ def test_http_get():
         "isBase64Encoded": False,
     }
 
-    response = function(event, {})
+    response = function(event, None)
     headers = _cimultidict(response["multiValueHeaders"])
 
     assert response["statusCode"] == http.HTTPStatus.OK.value
@@ -121,7 +121,7 @@ def test_http_post():
         "body": b64encode(body.encode()),
     }
 
-    response = function(event, {})
+    response = function(event, None)
     headers = _cimultidict(response["multiValueHeaders"])
 
     assert response["statusCode"] == http.HTTPStatus.OK.value
