@@ -8,7 +8,7 @@ target-version = ['py38']
 
 [tool.poetry]
 name = "fondat-aws"
-version = "3.0a12"
+version = "3.0a13"
 description = "Fondat package for Amazon Web Services."
 readme = "README.md"
 authors = ["fondat-aws authors"]
