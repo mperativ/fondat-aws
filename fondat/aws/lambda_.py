@@ -6,12 +6,15 @@ import fondat.http
 
 from base64 import b64encode, b64decode
 from collections.abc import Awaitable
+from fondat.types import BytesStream
 
 
 def http_function(handler: Awaitable):
     """Expose a Fondat HTTP request handler as an AWS Lambda function."""
 
     async def coroutine(event, context):
+        if event["version"] != "2.0":
+            raise InternalServerError('expecting payload version: "2.0"')
         with fondat.context.push(
             {
                 "context": "fondat.aws.lambda.http",
@@ -28,14 +31,17 @@ def http_function(handler: Awaitable):
             request.path = http["path"]
             request.version = version
             for key, value in event["headers"].items():
-                request.header[key] = value
-            for cookie in event["cookies"]:
+                request.headers[key] = value
+            for cookie in event.get("cookies", ()):
                 request.cookies.load(cookie)
-            for key, value in event["queryStringParameters"].items():
+            for key, value in event.get("queryStringParameters", {}).items():
                 request.query[key] = value
-            request.body = (
-                b64decode(event["body"]) if event["isBase64Encoded"] else event["body"].encode()
-            )
+            body = event.get("body")
+            if body:
+                request.body = BytesStream(
+                    b64decode(body) if event["isBase64Encoded"] else body.encode(),
+                    request.headers.get("content-length"),
+                )
             response = await handler(request)
             headers = response.headers
             return {
