@@ -6,15 +6,33 @@ import fondat.http
 
 from base64 import b64encode, b64decode
 from collections.abc import Awaitable
+from fondat.error import InternalServerError
 from fondat.types import BytesStream
 
 
-def http_function(handler: Awaitable):
-    """Expose a Fondat HTTP request handler as an AWS Lambda function."""
+def async_function(coroutine):
+    """Return an AWS Lambda function that invokes an asynchronous coroutine function."""
 
-    async def coroutine(event, context):
+    def function(event, context):
+        coro = coroutine(event, context)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop:
+            loop.run_until_complete(coro)
+        else:
+            return asyncio.run(coro)
+
+    return function
+
+
+def http_function(handler):
+    """Return an AWS Lambda function to invoke a Fondat HTTP request handler."""
+
+    async def handle(event, context):
         if event["version"] != "2.0":
-            raise InternalServerError('expecting payload version: "2.0"')
+            raise InternalServerError("expecting payload version: 2.0")
         with fondat.context.push(
             {
                 "context": "fondat.aws.lambda.http",
@@ -55,11 +73,4 @@ def http_function(handler: Awaitable):
                 ),
             }
 
-    def function(event, context):
-        coro = coroutine(event, context)
-        try:
-            asyncio.get_running_loop().run_until_complete(coro)
-        except RuntimeError:
-            return asyncio.run(coro)
-
-    return function
+    return async_function(handle)
