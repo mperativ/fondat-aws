@@ -9,14 +9,6 @@ from fondat.resource import resource, operation
 from typing import Annotated
 
 
-def _cimultidict(multiValueHeaders):
-    result = multidict.CIMultiDict()
-    for k, vs in multiValueHeaders.items():
-        for v in vs:
-            result.add(k, v)
-    return result
-
-
 def test_http_get():
     @resource
     class Resource:
@@ -64,7 +56,7 @@ def test_http_get():
     }
 
     response = function(event, None)
-    headers = _cimultidict(response["multiValueHeaders"])
+    headers = multidict.CIMultiDict(response["headers"])
 
     assert response["statusCode"] == http.HTTPStatus.OK.value
     assert headers["content-type"] == "text/plain; charset=UTF-8"
@@ -122,7 +114,7 @@ def test_http_post():
     }
 
     response = function(event, None)
-    headers = _cimultidict(response["multiValueHeaders"])
+    headers = multidict.CIMultiDict(response["headers"])
 
     assert response["statusCode"] == http.HTTPStatus.OK.value
     assert headers["content-type"] == "text/plain; charset=UTF-8"

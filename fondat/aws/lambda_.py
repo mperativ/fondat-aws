@@ -65,7 +65,7 @@ def http_function(handler):
             return {
                 "isBase64Encoded": True,
                 "statusCode": response.status,
-                "multiValueHeaders": {k: headers.getall(k) for k in headers.keys()},
+                "headers": {k: ", ".join(headers.getall(k)) for k in headers.keys()},
                 "body": (
                     b64encode(b"".join([b async for b in response.body])).decode()
                     if response.body is not None
