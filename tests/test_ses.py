@@ -1,13 +1,14 @@
-from string import Template
 import pytest
 
+import fondat.error
+
 from fondat.aws import Client, Config
-from fondat.aws.ses import EmailRecipient, ses_resource
+from fondat.aws.ses import ses_resource
+
 
 pytestmark = pytest.mark.asyncio
 
-# Run the following line before pytest
-# aws ses verify-email-identity --email-address test@test.io --region us-east-1 --profile localstack --endpoint-url=http://localhost:4566
+
 config = Config(
     endpoint_url="http://localhost:4566",
     aws_access_key_id="id",
@@ -22,27 +23,25 @@ async def client():
         yield client
 
 
-async def test_send(client):
+@pytest.fixture(scope="function")
+async def resource(client):
+    yield ses_resource(client)
 
-    test_str = """From: $test <$test>
-Subject: $test subject
-To: $test $test <$test>
-Content-Type: text/plain; charset='us-ascii'
-Content-Transfer-Encoding: 7bit
 
-Dear $test:
+@pytest.fixture(scope="module")
+async def init_verified():
+    await resource.identities.post("source@test.io")
 
-This is a $test.
 
-Thank you,
-$test
-"""
+async def test_send_raw_verified_identity(resource):
+    await resource.send_raw_email("source@test.io", "destination@test.io", b"message")
 
-    response = await ses_resource(client=client).send(
-        email_from="test@test.io",
-        email_to="test@test.io",
-        template=test_str,
-        prams={"test": "test"},
-    )
 
-    assert response["ResponseMetadata"]["HTTPStatusCode"] == 200
+async def test_send_unverified_identity(resource):
+    with pytest.raises(fondat.error.BadRequestError):
+        await resource.send_raw_email("unverified@test.io", "destination@test.io", b"message")
+
+
+async def test_verify_delete(resource):
+    await resource.identities.post("verify_delete@test.io")
+    await resource.identities["verify_delete@test.io"].delete()
