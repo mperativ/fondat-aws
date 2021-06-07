@@ -1,5 +1,6 @@
 import pytest
 
+import asyncio
 import fondat.error
 
 from fondat.aws import Client, Config
@@ -17,23 +18,30 @@ config = Config(
 )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
+def event_loop():
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture(scope="module")
 async def client():
     async with Client(service_name="ses", config=config) as client:
         yield client
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 async def resource(client):
     yield ses_resource(client)
 
 
-@pytest.fixture(scope="module")
-async def init_verified():
+@pytest.fixture(scope="module", autouse=True)
+async def setup_module(resource):
     await resource.identities.post("source@test.io")
 
 
-async def test_send_raw_verified_identity(resource):
+async def test_send_raw_verified_identity(resource, setup_module):
     await resource.send_raw_email("source@test.io", "destination@test.io", b"message")
 
 
