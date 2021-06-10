@@ -197,7 +197,7 @@ python-versions = "*"
 
 [[package]]
 name = "fondat-core"
-version = "3.0b57"
+version = "3.0b58"
 description = "A foundation for asynchronous Python resource-oriented applications."
 category = "main"
 optional = false
@@ -502,7 +502,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "3a5b44a07b9188e5f41cac6c59c055a860c36cab9e2c1c14183a4610b46ca265"
+content-hash = "0819386548a5e1e6493b1190da67ae8cdd4881b8ba0baf8f31519f373f86b5d6"
 
 [metadata.files]
 aiobotocore = [
@@ -657,8 +657,8 @@ filelock = [
     {file = "filelock-3.0.12.tar.gz", hash = "sha256:18d82244ee114f543149c66a6e0c14e9c4f8a1044b5cdaadd0f82159d6a6ff59"},
 ]
 fondat-core = [
-    {file = "fondat-core-3.0b57.tar.gz", hash = "sha256:a4e60489936445fc1a767cffe8b1dc831a240d27163af2c4debabcb6060d89b7"},
-    {file = "fondat_core-3.0b57-py3-none-any.whl", hash = "sha256:c3df6bb258100775340524b372bdb4c6658ff10f4ddbc5f61f9bb194832a04f3"},
+    {file = "fondat-core-3.0b58.tar.gz", hash = "sha256:0fb52d329345ddb9048b37eef6ecd1174e08677aa5360103c5664c43c655352a"},
+    {file = "fondat_core-3.0b58-py3-none-any.whl", hash = "sha256:aa344b26fae583bf8bc8db4b66db7405d3f92a28cccdcafef317f88572282df6"},
 ]
 identify = [
     {file = "identify-2.2.10-py2.py3-none-any.whl", hash = "sha256:18d0c531ee3dbc112fa6181f34faa179de3f57ea57ae2899754f16a7e0ff6421"},
