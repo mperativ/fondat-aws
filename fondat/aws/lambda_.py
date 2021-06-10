@@ -14,15 +14,7 @@ def async_function(coroutine):
     """Return an AWS Lambda function that invokes an asynchronous coroutine function."""
 
     def function(event, context):
-        coro = coroutine(event, context)
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-        if loop:
-            loop.run_until_complete(coro)
-        else:
-            return asyncio.run(coro)
+        return asyncio.run(coroutine(event, context))
 
     return function
 
