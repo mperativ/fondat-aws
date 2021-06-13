@@ -7,7 +7,7 @@ import fondat.http
 from base64 import b64encode, b64decode
 from collections.abc import Awaitable
 from fondat.error import InternalServerError
-from fondat.types import BytesStream
+from fondat.stream import BytesStream
 
 
 def async_function(coroutine):
