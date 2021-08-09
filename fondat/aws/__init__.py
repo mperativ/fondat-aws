@@ -1,13 +1,19 @@
 """Fondat package for Amazon Web Services."""
 
-import aiobotocore
 import dataclasses
+import logging
 
-from contextlib import contextmanager
+from aiobotocore import get_session
+from aiobotocore.client import AioBaseClient
+from asyncio import get_running_loop
+from contextlib import contextmanager, suppress
 from botocore.exceptions import ClientError
 from fondat.data import datacls
 from fondat.error import error_for_status
 from typing import Annotated, Optional
+
+
+_logger = logging.getLogger(__name__)
 
 
 @datacls
@@ -22,50 +28,47 @@ class Config:
 
 
 def _asdict(config):
-    return {k: v for k, v in dataclasses.asdict(config).items() if v is not None}
+    return {
+        k: v
+        for k, v in dataclasses.asdict(config if config is not None else {}).items()
+        if v is not None
+    }
 
 
-class Client:
+class Service:
     """
-    AWS client object.
-
-    This class wraps an asynchronous AWS client object, and provides
-    additional asynchronous open and close methods.
+    Fondat AWS service object.
 
     Parameters:
-    • service_name: the name of a service (example: "s3")
+    • name: the name of a service (example: "s3")
     • config: configuration object to initialize client
     • kwargs: client configuration arguments (overrides config)
     """
 
-    def __init__(self, service_name: str, config: Config = None, **kwargs):
-        self.service_name = service_name
-        self._kwargs = {**(_asdict(config) if config else {}), **kwargs}
+    def __init__(self, name: str, config: Config = None, **kwargs):
+        self.name = name
+        self.config = config
+        self.kwargs = kwargs
         self._client = None
+        self._loop = None
 
-    async def open(self) -> None:
-        if self._client:
-            raise RuntimeError("Client is already open")
-        session = aiobotocore.get_session()
-        client = session.create_client(service_name=self.service_name, **self._kwargs)
-        self._client = await client.__aenter__()
+    async def client(self) -> AioBaseClient:
+        if self._client is None or self._loop is not get_running_loop():
+            await self.close()
+            _logger.debug(f"Creating new {self.name} client")
+            session = get_session()
+            kwargs = _asdict(self.config) | self.kwargs
+            client = session.create_client(service_name=self.name, **kwargs)
+            self._client = await client.__aenter__()
+            self._loop = get_running_loop()
+        return self._client
 
     async def close(self) -> None:
-        if self._client:
-            await self._client.__aexit__(None, None, None)
-            self._client = None
-
-    def __getattr__(self, name):
-        if not self._client:
-            raise RuntimeError("Client is not open")
-        return getattr(self._client, name)
-
-    async def __aenter__(self):
-        await self.open()
-        return self
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        await self.close()
+        """Release any resources associated with the service."""
+        if self._client is not None:
+            with suppress():
+                await self._client.__aexit__(None, None, None)
+        self._client = None
 
 
 @contextmanager

@@ -1,8 +1,10 @@
 import pytest
 
+import asyncio
+
 from dataclasses import dataclass
 from datetime import date, datetime
-from fondat.aws import Client, Config
+from fondat.aws import Config, Service
 from fondat.aws.s3 import bucket_resource
 from fondat.error import NotFoundError
 from fondat.pagination import paginate
@@ -19,10 +21,24 @@ config = Config(
 )
 
 
+@pytest.fixture(scope="module")
+def event_loop():
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture(scope="module")
+async def service():
+    service = Service(name="s3", config=config)
+    yield service
+    await service.close()
+
+
 @pytest.fixture(scope="function")
-async def client():
-    async with Client(service_name="s3", config=config) as client:
-        yield client
+async def client(service):
+    client = await service.client()
+    yield client
 
 
 async def _empty_bucket(client, bucket):
@@ -42,7 +58,7 @@ async def bucket(client):
         await client.delete_bucket(Bucket=name)
 
 
-async def test_crud(client, bucket):
+async def test_crud(service, bucket):
     @dataclass
     class DC:
         id: str
@@ -58,7 +74,7 @@ async def test_crud(client, bucket):
         datetime_: Optional[datetime]
 
     resource = bucket_resource(
-        client=client,
+        service=service,
         bucket=bucket,
         key_type=str,
         value_type=DC,
@@ -96,9 +112,9 @@ async def test_crud(client, bucket):
         await r.get()
 
 
-async def test_pagination(client, bucket):
+async def test_pagination(service, bucket):
     resource = bucket_resource(
-        client=client,
+        service=service,
         bucket=bucket,
         key_type=str,
         value_type=str,
@@ -113,9 +129,9 @@ async def test_pagination(client, bucket):
     assert len(page.items) == 1
 
 
-async def test_folder(client, bucket):
+async def test_folder(service, bucket):
     resource = bucket_resource(
-        client=client,
+        service=service,
         bucket=bucket,
         folder="folder",
         key_type=str,

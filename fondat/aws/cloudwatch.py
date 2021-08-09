@@ -5,7 +5,7 @@ import logging
 from collections import deque
 from collections.abc import Iterable
 from datetime import datetime
-from fondat.aws import Client
+from fondat.aws import Service
 from fondat.data import datacls
 from fondat.resource import resource, operation, mutation
 from fondat.security import Policy
@@ -90,17 +90,22 @@ class Metric:
 
 def cloudwatch_resource(
     *,
-    client: Client,
+    service: Service = None,
     policies: Iterable[Policy] = None,
 ):
     """
     Create CloudWatch resource.
+
     Parameters:
-    • client: CloudWatch client object
+    • service: CloudWatch service object
     • security: security requirements to apply to all operations
     """
-    if client.service_name != "cloudwatch":
-        raise TypeError("expecting cloudwatch client")
+
+    if service is None:
+        service = Service("cloudwatch")
+
+    if service.name != "cloudwatch":
+        raise TypeError("expecting cloudwatch service object")
 
     @resource
     class NamespaceResource:
@@ -140,6 +145,7 @@ def cloudwatch_resource(
                     }
                 data.append(datum)
                 if len(data) == 20 or not metrics:
+                    client = await service.client()
                     await client.put_metric_data(Namespace=self.name, MetricData=data)
 
     @resource
@@ -159,8 +165,8 @@ class CloudWatchMonitor:
 
     # future: collect metrics, send in batches
 
-    def __init__(self, client: Client, namespace: str):
-        self.resource = cloudwatch_resource(client=client).namespace(namespace)
+    def __init__(self, service: Service, namespace: str):
+        self.resource = cloudwatch_resource(service=service).namespace(namespace)
 
     async def record(self, measurement: Measurement):
         """Record a measurement."""

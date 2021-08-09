@@ -4,7 +4,7 @@ import logging
 
 from collections.abc import Iterable
 from contextlib import suppress
-from fondat.aws import Client, wrap_client_error
+from fondat.aws import Service, wrap_client_error
 from fondat.data import datacls
 from fondat.error import NotFoundError
 from fondat.http import AsBody, InBody
@@ -24,7 +24,7 @@ class Secret:
 
 
 def secrets_resource(
-    client: Client,
+    service: Service = None,
     cache_size: int = 0,
     cache_expire: Union[int, float] = 1,
     policies: Iterable[Policy] = None,
@@ -33,13 +33,16 @@ def secrets_resource(
     Create secrets resource.
 
     Parameters:
-    • client: AWS secretsmanager client
+    • service: AWS secretsmanager service object
     • cache: time in seconds to cache secrets
     • policies: security policies to apply to all operations
     """
 
-    if client.service_name != "secretsmanager":
-        raise TypeError("expecting secretsmanager client")
+    if service is None:
+        service = Service("secretsmanager")
+
+    if service.name != "secretsmanager":
+        raise TypeError("expecting secretsmanager service object")
 
     cache = (
         memory_resource(
@@ -68,13 +71,14 @@ def secrets_resource(
             if cache:
                 with suppress(NotFoundError):
                     return await cache[self.name].get()
+            kwargs = {}
+            kwargs["SecretId"] = self.name
+            if version_id is not None:
+                kwargs["VersionId"] = version_id
+            if version_stage is not None:
+                kwargs["VersionStage"] = version_stage
+            client = await service.client()
             with wrap_client_error():
-                kwargs = {}
-                kwargs["SecretId"] = self.name
-                if version_id is not None:
-                    kwargs["VersionId"] = version_id
-                if version_stage is not None:
-                    kwargs["VersionStage"] = version_stage
                 value = await client.get_secret_value(**kwargs)
             secret = Secret(value=value.get("SecretString") or value.get("SecretBinary"))
             if cache:
@@ -89,6 +93,7 @@ def secrets_resource(
                 if isinstance(secret.value, str)
                 else "SecretBinary": secret.value
             }
+            client = await service.client()
             with wrap_client_error():
                 await client.put_secret_value(SecretId=self.name, **args)
             if cache:
@@ -100,6 +105,7 @@ def secrets_resource(
             if cache:
                 with suppress(NotFoundError):
                     await cache[self.name].delete()
+            client = await service.client()
             with wrap_client_error():
                 await client.delete_secret(SecretId=self.name)
 
@@ -126,6 +132,7 @@ def secrets_resource(
                 kwargs["KmsKeyId"] = kms_key_id
             if tags is not None:
                 kwargs["Tags"] = [{"Key": k, "Value": v} for k, v in tags.items()]
+            client = await service.client()
             with wrap_client_error():
                 await client.create_secret(**kwargs)
             if cache:

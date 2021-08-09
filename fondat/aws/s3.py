@@ -5,12 +5,13 @@ import fondat.pagination
 import logging
 
 from collections.abc import Iterable
-from fondat.aws import Client
+from fondat.aws import Service
 from fondat.codec import Binary, String
 from fondat.error import InternalServerError, NotFoundError
 from fondat.resource import resource, operation
 from fondat.security import Policy
 from typing import Any
+from urllib.parse import quote
 
 
 _logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ _logger = logging.getLogger(__name__)
 
 def bucket_resource(
     *,
-    client: Client,
+    service: Service = None,
     bucket: str,
     folder: str = None,
     key_type: type,
@@ -32,7 +33,7 @@ def bucket_resource(
     Create S3 bucket resource.
 
     Parameters:
-    • client: S3 client object
+    • service: S3 service object
     • bucket: name of bucket to contain objects
     • folder: name of folder within bucket to contain objects
     • key_type: type of key to identify object
@@ -43,8 +44,11 @@ def bucket_resource(
     • security: security policies to apply to all operations
     """
 
-    if client.service_name != "s3":
-        raise TypeError("expecting S3 client")
+    if service is None:
+        service = Service("s3")
+
+    if service.name != "s3":
+        raise TypeError("expecting s3 service object")
 
     key_codec = fondat.codec.get_codec(String, key_type)
     value_codec = fondat.codec.get_codec(Binary, value_type)
@@ -65,6 +69,7 @@ def bucket_resource(
 
         @operation(policies=policies)
         async def get(self) -> value_type:
+            client = await service.client()
             try:
                 response = await client.get_object(Bucket=bucket, Key=self.key)
                 async with response["Body"] as stream:
@@ -83,6 +88,7 @@ def bucket_resource(
             body = value_codec.encode(value)
             if compress:
                 body = compress.compress(body)
+            client = await service.client()
             try:
                 await client.put_object(Bucket=bucket, Key=self.key, Body=body)
             except Exception as e:
@@ -91,6 +97,7 @@ def bucket_resource(
 
         @operation(policies=policies)
         async def delete(self) -> None:
+            client = await service.client()
             try:
                 await client.delete_object(Bucket=bucket, Key=self.key)
             except Exception as e:
@@ -122,6 +129,7 @@ def bucket_resource(
                 kwargs["Prefix"] = prefix
             if cursor is not None:
                 kwargs["ContinuationToken"] = cursor.decode()
+            client = await service.client()
             try:
                 response = await client.list_objects_v2(Bucket=bucket, **kwargs)
                 next_token = response.get("NextContinuationToken")

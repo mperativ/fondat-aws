@@ -3,7 +3,7 @@
 import logging
 
 from collections.abc import Iterable
-from fondat.aws import Client, wrap_client_error
+from fondat.aws import Service, wrap_client_error
 from fondat.http import AsBody
 from fondat.resource import operation, resource, mutation
 from fondat.security import Policy
@@ -14,19 +14,22 @@ _logger = logging.getLogger(__name__)
 
 
 def ses_resource(
-    client: Client,
+    service: Service = None,
     policies: Iterable[Policy] = None,
 ):
     """
     Create SES resource.
 
     Parameters:
-    • client: SES client object
+    • service: SES service object
     • policies: security policies to apply to all operations
     """
 
-    if client.service_name != "ses":
-        raise TypeError("expecting SES client")
+    if service is None:
+        service = Service("ses")
+
+    if service.name != "ses":
+        raise TypeError("expecting ses service object")
 
     @resource
     class Identity:
@@ -38,6 +41,7 @@ def ses_resource(
         @operation(policies=policies)
         async def delete(self):
             """Delete the identity from verified identities."""
+            client = await service.client()
             await client.delete_identity(Identity=self.identity)
 
     @resource
@@ -47,6 +51,7 @@ def ses_resource(
         @operation(policies=policies)
         async def post(self, identity):
             """Add email address to list of identities for SES account."""
+            client = await service.client()
             await client.verify_email_identity(EmailAddress=identity)
 
         def __getitem__(self, identity) -> Identity:
@@ -75,6 +80,7 @@ def ses_resource(
             if isinstance(destinations, str):
                 destinations = [destinations]
 
+            client = await service.client()
             with wrap_client_error():
                 await client.send_raw_email(
                     Source=source, Destinations=destinations, RawMessage={"Data": data}

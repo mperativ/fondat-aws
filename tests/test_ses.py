@@ -3,7 +3,7 @@ import pytest
 import asyncio
 import fondat.error
 
-from fondat.aws import Client, Config
+from fondat.aws import Config, Service
 from fondat.aws.ses import ses_resource
 
 
@@ -29,14 +29,15 @@ def event_loop():
 
 
 @pytest.fixture(scope="module")
-async def client():
-    async with Client(service_name="ses", config=config) as client:
-        yield client
+async def service():
+    service = Service(name="ses", config=config)
+    yield service
+    await service.close()
 
 
 @pytest.fixture(scope="module")
-async def resource(client):
-    yield ses_resource(client)
+async def resource(service):
+    yield ses_resource(service)
 
 
 @pytest.fixture(scope="module", autouse=True)

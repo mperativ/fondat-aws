@@ -2,7 +2,7 @@ import pytest
 
 import asyncio
 
-from fondat.aws import Client, Config
+from fondat.aws import Config, Service
 from fondat.aws.secrets import Secret, secrets_resource
 from fondat.error import BadRequestError, NotFoundError
 from uuid import uuid4
@@ -27,14 +27,15 @@ def event_loop():
 
 
 @pytest.fixture(scope="module")
-async def client():
-    async with Client(service_name="secretsmanager", config=config) as client:
-        yield client
+async def service():
+    service = Service(name="secretsmanager", config=config)
+    yield service
+    await service.close()
 
 
 @pytest.fixture(scope="module")
-async def resource(client):
-    yield secrets_resource(client)
+async def resource(service):
+    yield secrets_resource(service)
 
 
 async def test_string_binary(resource):
@@ -61,8 +62,9 @@ async def test_binary_string(resource):
     await resource[name].delete()
 
 
-async def test_get_cache(client):
-    resource = secrets_resource(client, cache_size=10, cache_expire=10)
+async def test_get_cache(service):
+    client = await service.client()
+    resource = secrets_resource(service, cache_size=10, cache_expire=10)
     name = str(uuid4())
     secret = Secret(value=name)
     await client.create_secret(Name=name, SecretString=secret.value)
@@ -71,8 +73,9 @@ async def test_get_cache(client):
     assert await resource[name].get() == secret  # still cached
 
 
-async def test_put_get_cache(client):
-    resource = secrets_resource(client, cache_size=10, cache_expire=10)
+async def test_put_get_cache(service):
+    client = await service.client()
+    resource = secrets_resource(service, cache_size=10, cache_expire=10)
     name = str(uuid4())
     secret = Secret(value=name)
     await resource.post(name=name, secret=secret)  # caches secret
@@ -80,8 +83,8 @@ async def test_put_get_cache(client):
     assert await resource[name].get() == secret  # still cached
 
 
-async def test_delete_cache(client):
-    resource = secrets_resource(client, cache_size=10, cache_expire=10)
+async def test_delete_cache(service):
+    resource = secrets_resource(service, cache_size=10, cache_expire=10)
     name = str(uuid4())
     secret = Secret(value=name)
     await resource.post(name=name, secret=secret)  # caches secret
@@ -91,8 +94,9 @@ async def test_delete_cache(client):
         await resource[name].get()
 
 
-async def test_get_cache_evict(client):
-    resource = secrets_resource(client, cache_size=1, cache_expire=10)
+async def test_get_cache_evict(service):
+    client = await service.client()
+    resource = secrets_resource(service, cache_size=1, cache_expire=10)
     name1 = str(uuid4())
     secret1 = Secret(value=name1)
     await client.create_secret(Name=name1, SecretString=secret1.value)
