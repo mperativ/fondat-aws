@@ -1,6 +1,5 @@
 """Fondat package for Amazon Web Services."""
 
-import dataclasses
 import logging
 
 from aiobotocore import get_session
@@ -8,9 +7,10 @@ from aiobotocore.client import AioBaseClient
 from asyncio import get_running_loop
 from contextlib import contextmanager, suppress
 from botocore.exceptions import ClientError
+from dataclasses import asdict
 from fondat.data import datacls
 from fondat.error import error_for_status
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 
 
 _logger = logging.getLogger(__name__)
@@ -27,12 +27,8 @@ class Config:
     verify: Annotated[Optional[bool], "verify TLS certificates"]
 
 
-def _asdict(config):
-    return {
-        k: v
-        for k, v in dataclasses.asdict(config if config is not None else {}).items()
-        if v is not None
-    }
+def _kwargs(config: Config) -> dict[str, Any]:
+    return {k: v for k, v in (asdict(config) if config else {}).items() if v is not None}
 
 
 class Service:
@@ -42,13 +38,16 @@ class Service:
     Parameters:
     • name: the name of a service (example: "s3")
     • config: configuration object to initialize client
-    • kwargs: client configuration arguments (overrides config)
+
+    If no configuration is specified, then the AWS client will use configuration and
+    credentials in environment variables and/or files as consumed by Python AWS libraries and
+    the AWS command line interface. For more information see:
+    https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html.
     """
 
-    def __init__(self, name: str, config: Config = None, **kwargs):
+    def __init__(self, name: str, config: Config = None):
         self.name = name
         self.config = config
-        self.kwargs = kwargs
         self._client = None
         self._loop = None
 
@@ -57,8 +56,7 @@ class Service:
             await self.close()
             _logger.debug(f"Creating new {self.name} client")
             session = get_session()
-            kwargs = _asdict(self.config) | self.kwargs
-            client = session.create_client(service_name=self.name, **kwargs)
+            client = session.create_client(service_name=self.name, **_kwargs(self.config))
             self._client = await client.__aenter__()
             self._loop = get_running_loop()
         return self._client
