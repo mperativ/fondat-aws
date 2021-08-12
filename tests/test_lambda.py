@@ -3,7 +3,7 @@ import http
 import multidict
 
 from base64 import b64encode, b64decode
-from fondat.aws.lambda_ import http_function
+from fondat.aws.lambda_ import async_function, http_function
 from fondat.http import AsBody
 from fondat.resource import resource, operation
 from typing import Annotated
@@ -120,3 +120,20 @@ def test_http_post():
     assert headers["content-type"] == "text/plain; charset=UTF-8"
     assert headers["content-length"] == str(len(body))
     assert b64decode(response["body"]).decode() == body
+
+
+def test_init():
+    counter = 0
+
+    async def handler(event, context):
+        pass
+
+    async def init():
+        nonlocal counter
+        counter += 1
+
+    fn = async_function(handler, init)
+    fn({}, None)
+    assert counter == 1
+    fn({}, None)
+    assert counter == 1

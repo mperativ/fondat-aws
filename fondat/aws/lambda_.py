@@ -5,24 +5,51 @@ import fondat.context
 import fondat.http
 
 from base64 import b64encode, b64decode
-from collections.abc import Awaitable
+from collections.abc import Callable, Coroutine
 from fondat.error import InternalServerError
 from fondat.stream import BytesStream
+from typing import Any
 
 
-def async_function(coroutine):
-    """Return an AWS Lambda function that invokes an asynchronous coroutine function."""
+def async_function(
+    handler: Callable[[dict[str, Any], Any], Coroutine[Any, Any, Any]],
+    init: Callable[[], Coroutine[Any, Any, None]] = None,
+):
+    """
+    Return an AWS Lambda function that invokes an asynchronous coroutine function with event
+    and context.
 
-    def function(event, context):
-        return asyncio.get_event_loop().run_until_complete(coroutine(event, context))
+    Parameters:
+    • coroutine: coroutine function to invoke for each call
+    • init: coroutine function to invoke prior to first coroutine invocation
+    """
+
+    _init = False
+
+    def function(event: dict[str, Any], context: Any) -> dict[str, Any]:
+        nonlocal _init
+        loop = asyncio.get_event_loop()
+        if not _init and init is not None:
+            loop.run_until_complete(init())
+            _init = True
+        return loop.run_until_complete(handler(event, context))
 
     return function
 
 
-def http_function(handler):
-    """Return an AWS Lambda function to invoke a Fondat HTTP request handler."""
+def http_function(
+    handler: Callable[[fondat.http.Request], Coroutine[Any, Any, fondat.http.Response]],
+    init: Callable[[], Coroutine[Any, Any, None]] = None,
+) -> Callable[[Any, Any], Coroutine[Any, Any, dict[str, Any]]]:
+    """
+    Return an AWS Lambda function to invoke an HTTP request handler.
 
-    async def handle(event, context):
+    Parameters:
+    • handler: HTTP request handler coroutine function to invoke for each call
+    • init: coroutine function to invoke prior to first request handler invocation
+    """
+
+    async def http_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         if event["version"] != "2.0":
             raise InternalServerError("expecting payload version: 2.0")
         with fondat.context.push(
@@ -65,4 +92,4 @@ def http_function(handler):
                 ),
             }
 
-    return async_function(handle)
+    return async_function(http_handler, init)
