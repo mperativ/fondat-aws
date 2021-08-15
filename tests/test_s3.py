@@ -11,6 +11,7 @@ from fondat.pagination import paginate
 from typing import Optional, TypedDict
 from uuid import uuid4
 
+
 pytestmark = pytest.mark.asyncio
 
 

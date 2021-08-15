@@ -1,5 +1,6 @@
 """Fondat package for Amazon Web Services."""
 
+import fondat.error
 import logging
 
 from aiobotocore import get_session
@@ -9,7 +10,6 @@ from contextlib import contextmanager, suppress
 from botocore.exceptions import ClientError
 from dataclasses import asdict
 from fondat.data import datacls
-from fondat.error import error_for_status
 from typing import Annotated, Any, Optional
 
 
@@ -71,10 +71,10 @@ class Service:
 
 @contextmanager
 def wrap_client_error():
-    """Catch any raised ClientError and reraise as a Fondat error."""
+    """Catch any raised ClientError and reraise as a Fondat resource error."""
     try:
         yield
     except ClientError as ce:
         status = ce.response["ResponseMetadata"]["HTTPStatusCode"]
         message = ce.response["Error"]["Message"]
-        raise error_for_status(status)(message)
+        raise fondat.error.errors[status](message)
