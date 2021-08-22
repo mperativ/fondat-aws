@@ -3,8 +3,8 @@
 import fondat.error
 import logging
 
-from aiobotocore import get_session
 from aiobotocore.client import AioBaseClient
+from aiobotocore.session import get_session
 from asyncio import get_running_loop
 from contextlib import contextmanager, suppress
 from botocore.exceptions import ClientError

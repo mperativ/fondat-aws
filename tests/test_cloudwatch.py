@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from fondat.aws import Config, Service
 import fondat.aws.cloudwatch as cw
 from fondat.aws.cloudwatch import CloudWatchMonitor
-from fondat.error import NotFoundError
 from fondat.monitoring import Measurement, Counter, Gauge, Absolute
 from uuid import uuid4
 
