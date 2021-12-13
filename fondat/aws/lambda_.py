@@ -1,4 +1,4 @@
-"""Fondat module for AWS Lambda."""
+"""AWS Lambda module."""
 
 import asyncio
 import fondat.context
@@ -14,6 +14,7 @@ from typing import Any
 def async_function(
     handler: Callable[[dict[str, Any], Any], Coroutine[Any, Any, Any]],
     init: Callable[[], Coroutine[Any, Any, None]] = None,
+    loop: asyncio.AbstractEventLoop = None,
 ):
     """
     Return an AWS Lambda function that invokes an asynchronous coroutine function with event
@@ -21,17 +22,18 @@ def async_function(
 
     Parameters:
     • coroutine: coroutine function to invoke for each call
-    • init: coroutine function to invoke prior to first coroutine invocation
+    • init: initialization coroutine function to invoke prior to first coroutine invocation
+    • loop: event loop to run function in; None creates a new one
     """
 
-    _init = False
-
     def function(event: dict[str, Any], context: Any) -> dict[str, Any]:
-        nonlocal _init
-        loop = asyncio.get_event_loop()
-        if not _init and init is not None:
+        nonlocal loop
+        nonlocal init
+        if not loop:
+            loop = asyncio.new_event_loop()
+        if init:
             loop.run_until_complete(init())
-            _init = True
+            init = None
         return loop.run_until_complete(handler(event, context))
 
     return function

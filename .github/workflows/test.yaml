@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: [3.9]
+        python: ["3.9", "3.10"]
 
     env:
       AWS_ACCESS_KEY_ID: foo

@@ -13,7 +13,7 @@ config = Config(
 
 def test_switch_event_loop():
     service = Service(name="secretsmanager", config=config)
-    loop1 = asyncio.get_event_loop()
+    loop1 = asyncio.new_event_loop()
     client = loop1.run_until_complete(service.client())
     loop1.run_until_complete(client.list_secrets())
     loop2 = asyncio.new_event_loop()
