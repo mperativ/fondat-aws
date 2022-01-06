@@ -53,7 +53,7 @@ def http_function(
 
     async def http_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         if event["version"] != "2.0":
-            raise InternalServerError("expecting payload version: 2.0")
+            raise ValueError("expecting payload version: 2.0")
         with fondat.context.push(
             {
                 "context": "fondat.aws.lambda.http",
@@ -65,7 +65,7 @@ def http_function(
             http = event["requestContext"]["http"]
             protocol, version = http["protocol"].split("/", 1)
             if protocol != "HTTP":
-                raise InternalServerError("expecting HTTP protocol")
+                raise ValueError("expecting HTTP protocol")
             request.method = http["method"]
             request.path = http["path"]
             request.version = version
