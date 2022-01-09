@@ -10,7 +10,7 @@ from fondat.codec import Binary, String
 from fondat.error import InternalServerError, NotFoundError
 from fondat.resource import resource, operation
 from fondat.security import Policy
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import quote
 
 
@@ -19,15 +19,15 @@ _logger = logging.getLogger(__name__)
 
 def bucket_resource(
     *,
-    service: Service = None,
+    service: Optional[Service] = None,
     bucket: str,
-    folder: str = None,
+    folder: Optional[str] = None,
     key_type: type,
     value_type: type,
-    extension: str = None,
+    extension: Optional[str] = None,
     compress: Any = None,
     encode_keys: bool = False,
-    policies: Iterable[Policy] = None,
+    policies: Optional[Iterable[Policy]] = None,
 ):
     """
     Create S3 bucket resource.
@@ -120,7 +120,7 @@ def bucket_resource(
 
         @operation(policies=policies)
         async def get(
-            self, prefix: str = None, limit: int = None, cursor: bytes = None
+            self, prefix: Optional[str] = None, limit: Optional[int] = None, cursor: Optional[bytes] = None
         ) -> Page:
             kwargs = {}
             if limit and limit > 0:

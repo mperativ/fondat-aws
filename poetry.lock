@@ -212,7 +212,7 @@ testing = ["covdefaults (>=1.2.0)", "coverage (>=4)", "pytest (>=4)", "pytest-co
 
 [[package]]
 name = "fondat-core"
-version = "3.0.15"
+version = "3.0.17"
 description = "A foundation for asynchronous Python resource-oriented applications."
 category = "main"
 optional = false
@@ -480,7 +480,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "urllib3"
-version = "1.26.7"
+version = "1.26.8"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 category = "main"
 optional = false
@@ -718,8 +718,8 @@ filelock = [
     {file = "filelock-3.4.2.tar.gz", hash = "sha256:38b4f4c989f9d06d44524df1b24bd19e167d851f19b50bf3e3559952dddc5b80"},
 ]
 fondat-core = [
-    {file = "fondat-core-3.0.15.tar.gz", hash = "sha256:c55b22ff7d28225c0d5dd599252358ff8ba59d0dfdd54e9aeac4636bce9cdc60"},
-    {file = "fondat_core-3.0.15-py3-none-any.whl", hash = "sha256:3fb104ab5dfcbb5713fb67749f4117d34d73b47081b3aec6b64e97b1c2667a55"},
+    {file = "fondat-core-3.0.17.tar.gz", hash = "sha256:c6414c1ea6affc5ac65e87f83c4f633cd56140451671a259c9b2f8b9b1312534"},
+    {file = "fondat_core-3.0.17-py3-none-any.whl", hash = "sha256:a6a512408eaec596630a8d916de8551dd518e2f836dd5f3c763605628420ebbe"},
 ]
 frozenlist = [
     {file = "frozenlist-1.2.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:977a1438d0e0d96573fd679d291a1542097ea9f4918a8b6494b06610dfeefbf9"},
@@ -993,8 +993,8 @@ typing-extensions = [
     {file = "typing_extensions-4.0.1.tar.gz", hash = "sha256:4ca091dea149f945ec56afb48dae714f21e8692ef22a395223bcd328961b6a0e"},
 ]
 urllib3 = [
-    {file = "urllib3-1.26.7-py2.py3-none-any.whl", hash = "sha256:c4fdf4019605b6e5423637e01bc9fe4daef873709a7973e195ceba0a62bbc844"},
-    {file = "urllib3-1.26.7.tar.gz", hash = "sha256:4987c65554f7a2dbf30c18fd48778ef124af6fab771a377103da0585e2336ece"},
+    {file = "urllib3-1.26.8-py2.py3-none-any.whl", hash = "sha256:000ca7f471a233c2251c6c7023ee85305721bfdf18621ebff4fd17a8653427ed"},
+    {file = "urllib3-1.26.8.tar.gz", hash = "sha256:0e7c33d9a63e7ddfcb86780aac87befc2fbddf46c58dbb487e0855f7ceec283c"},
 ]
 virtualenv = [
     {file = "virtualenv-20.13.0-py2.py3-none-any.whl", hash = "sha256:339f16c4a86b44240ba7223d0f93a7887c3ca04b5f9c8129da7958447d079b09"},

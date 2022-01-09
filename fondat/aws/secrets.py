@@ -12,7 +12,7 @@ from fondat.memory import memory_resource
 from fondat.resource import resource, operation
 from fondat.security import Policy
 from time import time
-from typing import Annotated, Any, Union
+from typing import Annotated, Any, Optional, Union
 
 
 _logger = logging.getLogger(__name__)
@@ -24,10 +24,10 @@ class Secret:
 
 
 def secrets_resource(
-    service: Service = None,
+    service: Optional[Service] = None,
     cache_size: int = 0,
     cache_expire: Union[int, float] = 1,
-    policies: Iterable[Policy] = None,
+    policies: Optional[Iterable[Policy]] = None,
 ) -> Any:
     """
     Create secrets resource.
@@ -66,7 +66,7 @@ def secrets_resource(
             self.name = name
 
         @operation(policies=policies)
-        async def get(self, version_id: str = None, version_stage: str = None) -> Secret:
+        async def get(self, version_id: Optional[str] = None, version_stage: Optional[str] = None) -> Secret:
             """Get secret."""
             if cache:
                 with suppress(NotFoundError):
@@ -118,8 +118,8 @@ def secrets_resource(
             self,
             name: Annotated[str, InBody],
             secret: Annotated[Secret, InBody],
-            kms_key_id: Annotated[str, InBody] = None,
-            tags: Annotated[dict[str, str], InBody] = None,
+            kms_key_id: Annotated[Optional[str], InBody] = None,
+            tags: Annotated[Optional[dict[str, str]], InBody] = None,
         ):
             """Create secret."""
             kwargs = {}

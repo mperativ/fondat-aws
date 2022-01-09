@@ -16,10 +16,10 @@ _logger = logging.getLogger(__name__)
 
 def queue_resource(
     *,
-    service: Service = None,
+    service: Optional[Service] = None,
     queue_url: str,
     message_type: type,
-    policies: Iterable[Policy] = None,
+    policies: Optional[Iterable[Policy]] = None,
 ):
     """
     Create SQS queue resource.

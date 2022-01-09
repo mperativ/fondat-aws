@@ -90,8 +90,8 @@ class Metric:
 
 def cloudwatch_resource(
     *,
-    service: Service = None,
-    policies: Iterable[Policy] = None,
+    service: Optional[Service] = None,
+    policies: Optional[Iterable[Policy]] = None,
 ):
     """
     Create CloudWatch resource.

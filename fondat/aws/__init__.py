@@ -45,7 +45,7 @@ class Service:
     https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html.
     """
 
-    def __init__(self, name: str, config: Config = None):
+    def __init__(self, name: str, config: Optional[Config] = None):
         self.name = name
         self.config = config
         self._client = None
@@ -77,4 +77,4 @@ def wrap_client_error():
     except ClientError as ce:
         status = ce.response["ResponseMetadata"]["HTTPStatusCode"]
         message = ce.response["Error"]["Message"]
-        raise fondat.error.errors[status](message)
+        raise fondat.error.errors[status]("aws_sucks", message)

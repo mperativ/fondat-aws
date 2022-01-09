@@ -7,15 +7,15 @@ from fondat.aws import Service, wrap_client_error
 from fondat.http import AsBody
 from fondat.resource import operation, resource, mutation
 from fondat.security import Policy
-from typing import Annotated, Union
+from typing import Annotated, Optional, Union
 
 
 _logger = logging.getLogger(__name__)
 
 
 def ses_resource(
-    service: Service = None,
-    policies: Iterable[Policy] = None,
+    service: Optional[Service] = None,
+    policies: Optional[Iterable[Policy]] = None,
 ):
     """
     Create SES resource.
