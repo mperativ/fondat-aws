@@ -4,17 +4,16 @@ import asyncio
 import fondat.context
 import fondat.http
 
-from base64 import b64encode, b64decode
+from base64 import b64decode, b64encode
 from collections.abc import Callable, Coroutine
-from fondat.error import InternalServerError
 from fondat.stream import BytesStream
-from typing import Any, Optional
+from typing import Any
 
 
 def async_function(
     handler: Callable[[dict[str, Any], Any], Coroutine[Any, Any, Any]],
-    init: Optional[Callable[[], Coroutine[Any, Any, None]]] = None,
-    loop: Optional[asyncio.AbstractEventLoop] = None,
+    init: Callable[[], Coroutine[Any, Any, None]] | None = None,
+    loop: asyncio.AbstractEventLoop | None = None,
 ):
     """
     Return an AWS Lambda function that invokes an asynchronous coroutine function with event
@@ -41,7 +40,7 @@ def async_function(
 
 def http_function(
     handler: Callable[[fondat.http.Request], Coroutine[Any, Any, fondat.http.Response]],
-    init: Optional[Callable[[], Coroutine[Any, Any, None]]] = None,
+    init: Callable[[], Coroutine[Any, Any, None]] | None = None,
 ) -> Callable[[Any, Any], Coroutine[Any, Any, dict[str, Any]]]:
     """
     Return an AWS Lambda function to invoke an HTTP request handler.

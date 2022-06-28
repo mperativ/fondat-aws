@@ -1,57 +1,63 @@
 """Fondat module for Amazon Simple Storage Service (S3)."""
 
+import fondat.aws.client
 import fondat.codec
 import fondat.pagination
 import logging
 
 from collections.abc import Iterable
-from fondat.aws import Service
+from contextlib import asynccontextmanager
+from fondat.aws.client import Config
 from fondat.codec import Binary, String
 from fondat.error import InternalServerError, NotFoundError
-from fondat.resource import resource, operation
+from fondat.resource import operation, resource
 from fondat.security import Policy
-from typing import Any, Optional
+from fondat.validation import validate_arguments
+from typing import Any
 from urllib.parse import quote
 
 
 _logger = logging.getLogger(__name__)
 
 
+@validate_arguments
 def bucket_resource(
-    *,
-    service: Optional[Service] = None,
     bucket: str,
-    folder: Optional[str] = None,
+    *,
+    prefix: str | None = None,
+    suffix: str | None = None,
     key_type: type,
     value_type: type,
-    extension: Optional[str] = None,
     compress: Any = None,
     encode_keys: bool = False,
-    policies: Optional[Iterable[Policy]] = None,
+    config: Config | None = None,
+    policies: Iterable[Policy] | None = None,
 ):
     """
     Create S3 bucket resource.
 
     Parameters:
-    • service: S3 service object
     • bucket: name of bucket to contain objects
-    • folder: name of folder within bucket to contain objects
+    • prefix: prefix for all objects
+    • suffix: suffix for all objects
     • key_type: type of key to identify object
     • value_type: type of value stored in each object
-    • extenson: filename extension to use for each file (including dot)
     • compress: algorithm to compress and decompress content
     • encode_keys: URL encode and decode object keys
-    • security: security policies to apply to all operations
+    • config: client configuration
+    • policies: security policies to apply to all operations
     """
 
-    if service is None:
-        service = Service("s3")
-
-    if service.name != "s3":
-        raise TypeError("expecting s3 service object")
+    prefix = prefix or ""
+    suffix = suffix or ""
 
     key_codec = fondat.codec.get_codec(String, key_type)
     value_codec = fondat.codec.get_codec(Binary, value_type)
+
+    @asynccontextmanager
+    async def create_client():
+        async with fondat.aws.client.create_client("s3", config=config) as client:
+            yield client
 
     @resource
     class Object:
@@ -61,57 +67,45 @@ def bucket_resource(
             key = key_codec.encode(key)
             if encode_keys:
                 key = quote(key, safe="")
-            if extension is not None:
-                key = f"{key}{extension}"
-            if folder is not None:
-                key = f"{folder}/{key}"
-            self.key = key
+            self._key = f"{prefix}{key}{suffix}"
 
         @operation(policies=policies)
         async def get(self) -> value_type:
-            client = await service.client()
-            try:
-                response = await client.get_object(Bucket=bucket, Key=self.key)
-                async with response["Body"] as stream:
-                    body = await stream.read()
-                if compress:
-                    body = compress.decompress(body)
-                return value_codec.decode(body)
-            except client.exceptions.NoSuchKey:
-                raise NotFoundError
-            except Exception as e:
-                _logger.error(e)
-                raise InternalServerError from e
+            async with create_client() as client:
+                try:
+                    response = await client.get_object(Bucket=bucket, Key=self._key)
+                    async with response["Body"] as stream:
+                        body = await stream.read()
+                    if compress:
+                        body = compress.decompress(body)
+                    return value_codec.decode(body)
+                except client.exceptions.NoSuchKey:
+                    raise NotFoundError
+                except Exception as e:
+                    _logger.error(e)
+                    raise InternalServerError from e
 
         @operation(policies=policies)
         async def put(self, value: value_type) -> None:
             body = value_codec.encode(value)
             if compress:
                 body = compress.compress(body)
-            client = await service.client()
-            try:
-                await client.put_object(Bucket=bucket, Key=self.key, Body=body)
-            except Exception as e:
-                _logger.error(e)
-                raise InternalServerError from e
+            async with create_client() as client:
+                try:
+                    await client.put_object(Bucket=bucket, Key=self._key, Body=body)
+                except Exception as e:
+                    _logger.error(e)
+                    raise InternalServerError from e
 
         @operation(policies=policies)
         async def delete(self) -> None:
-            client = await service.client()
-            try:
-                await client.delete_object(Bucket=bucket, Key=self.key)
-            except Exception as e:
-                _logger.error(e)
-                raise InternalServerError from e
+            async with create_client() as client:
+                try:
+                    await client.delete_object(Bucket=bucket, Key=self._key)
+                except Exception as e:
+                    _logger.error(e)
+                    raise InternalServerError from e
 
-    def _prefix(prefix):
-        if not folder:
-            return prefix
-        if not prefix:
-            return folder
-        return f"{folder}/{prefix}"
-
-    key_offset = len(folder) + 1 if folder else 0
     Page = fondat.pagination.make_page_dataclass("Page", str)
 
     @resource
@@ -120,30 +114,33 @@ def bucket_resource(
 
         @operation(policies=policies)
         async def get(
-            self, prefix: Optional[str] = None, limit: Optional[int] = None, cursor: Optional[bytes] = None
+            self,
+            limit: int | None = None,
+            cursor: bytes | None = None,
         ) -> Page:
             kwargs = {}
             if limit and limit > 0:
                 kwargs["MaxKeys"] = limit
-            if prefix := _prefix(prefix):
+            if prefix:
                 kwargs["Prefix"] = prefix
             if cursor is not None:
                 kwargs["ContinuationToken"] = cursor.decode()
-            client = await service.client()
-            try:
-                response = await client.list_objects_v2(Bucket=bucket, **kwargs)
-                next_token = response.get("NextContinuationToken")
-                page = Page(
-                    items=[
-                        content["Key"][key_offset:] for content in response.get("Contents", ())
-                    ],
-                    cursor=next_token.encode() if next_token else None,
-                    remaining=None,
-                )
-                return page
-            except Exception as e:
-                _logger.error(e)
-                raise InternalServerError from e
+            async with create_client() as client:
+                try:
+                    response = await client.list_objects_v2(Bucket=bucket, **kwargs)
+                    next_token = response.get("NextContinuationToken")
+                    page = Page(
+                        items=[
+                            content["Key"][len(prefix) : len(content["Key"]) - len(suffix)]
+                            for content in response.get("Contents", ())
+                        ],
+                        cursor=next_token.encode() if next_token else None,
+                        remaining=None,
+                    )
+                    return page
+                except Exception as e:
+                    _logger.error(e)
+                    raise InternalServerError from e
 
         def __getitem__(self, key: key_type) -> Object:
             return Object(key)

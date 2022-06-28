@@ -1,41 +1,23 @@
+import asyncio
+import fondat.aws.client
 import pytest
 
-import asyncio
-
-from fondat.aws import Config, Service
+from pytest import fixture
 from fondat.aws.secrets import Secret, secrets_resource
 from fondat.error import BadRequestError, NotFoundError
 from uuid import uuid4
 
 
-pytestmark = pytest.mark.asyncio
-
-
-config = Config(
-    endpoint_url="http://localhost:4566",
-    aws_access_key_id="id",
-    aws_secret_access_key="secret",
-    region_name="us-east-1",
-)
-
-
-@pytest.fixture(scope="module")
+@fixture(scope="module")
 def event_loop():
     loop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest.fixture(scope="module")
-async def service():
-    service = Service(name="secretsmanager", config=config)
-    yield service
-    await service.close()
-
-
-@pytest.fixture(scope="module")
-async def resource(service):
-    yield secrets_resource(service)
+@fixture(scope="module")
+async def resource():
+    yield secrets_resource()
 
 
 async def test_string_binary(resource):
@@ -62,29 +44,29 @@ async def test_binary_string(resource):
     await resource[name].delete()
 
 
-async def test_get_cache(service):
-    client = await service.client()
-    resource = secrets_resource(service, cache_size=10, cache_expire=10)
-    name = str(uuid4())
-    secret = Secret(value=name)
-    await client.create_secret(Name=name, SecretString=secret.value)
-    assert await resource[name].get() == secret  # caches secret
-    await client.delete_secret(SecretId=name)
-    assert await resource[name].get() == secret  # still cached
+async def test_get_cache():
+    async with fondat.aws.client.create_client("secretsmanager") as client:
+        resource = secrets_resource(cache_size=10, cache_expire=10)
+        name = str(uuid4())
+        secret = Secret(value=name)
+        await client.create_secret(Name=name, SecretString=secret.value)
+        assert await resource[name].get() == secret  # caches secret
+        await client.delete_secret(SecretId=name)
+        assert await resource[name].get() == secret  # still cached
 
 
-async def test_put_get_cache(service):
-    client = await service.client()
-    resource = secrets_resource(service, cache_size=10, cache_expire=10)
-    name = str(uuid4())
-    secret = Secret(value=name)
-    await resource.post(name=name, secret=secret)  # caches secret
-    await client.delete_secret(SecretId=name)
-    assert await resource[name].get() == secret  # still cached
+async def test_put_get_cache():
+    async with fondat.aws.client.create_client("secretsmanager") as client:
+        resource = secrets_resource(cache_size=10, cache_expire=10)
+        name = str(uuid4())
+        secret = Secret(value=name)
+        await resource.post(name=name, secret=secret)  # caches secret
+        await client.delete_secret(SecretId=name)
+        assert await resource[name].get() == secret  # still cached
 
 
-async def test_delete_cache(service):
-    resource = secrets_resource(service, cache_size=10, cache_expire=10)
+async def test_delete_cache():
+    resource = secrets_resource(cache_size=10, cache_expire=10)
     name = str(uuid4())
     secret = Secret(value=name)
     await resource.post(name=name, secret=secret)  # caches secret
@@ -94,19 +76,19 @@ async def test_delete_cache(service):
         await resource[name].get()
 
 
-async def test_get_cache_evict(service):
-    client = await service.client()
-    resource = secrets_resource(service, cache_size=1, cache_expire=10)
-    name1 = str(uuid4())
-    secret1 = Secret(value=name1)
-    await client.create_secret(Name=name1, SecretString=secret1.value)
-    name2 = str(uuid4())
-    secret2 = Secret(value=name2)
-    await client.create_secret(Name=name2, SecretString=secret2.value)
-    assert await resource[name1].get() == secret1
-    assert await resource[name2].get() == secret2
-    await client.delete_secret(SecretId=name1)
-    await client.delete_secret(SecretId=name2)
-    with pytest.raises(BadRequestError):
-        await resource[name1].get()  # evicted and marked deleted
-    assert await resource[name2].get() == secret2  # still cached
+async def test_get_cache_evict():
+    async with fondat.aws.client.create_client("secretsmanager") as client:
+        resource = secrets_resource(cache_size=1, cache_expire=10)
+        name1 = str(uuid4())
+        secret1 = Secret(value=name1)
+        await client.create_secret(Name=name1, SecretString=secret1.value)
+        name2 = str(uuid4())
+        secret2 = Secret(value=name2)
+        await client.create_secret(Name=name2, SecretString=secret2.value)
+        assert await resource[name1].get() == secret1
+        assert await resource[name2].get() == secret2
+        await client.delete_secret(SecretId=name1)
+        await client.delete_secret(SecretId=name2)
+        with pytest.raises(BadRequestError):
+            await resource[name1].get()  # evicted and marked deleted
+        assert await resource[name2].get() == secret2  # still cached

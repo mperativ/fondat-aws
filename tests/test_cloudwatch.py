@@ -1,91 +1,85 @@
-import pytest
-
 from datetime import datetime, timezone
-from fondat.aws import Config, Service
-import fondat.aws.cloudwatch as cw
-from fondat.aws.cloudwatch import CloudWatchMonitor
-from fondat.monitoring import Measurement, Counter, Gauge, Absolute
-from uuid import uuid4
-
-
-pytestmark = pytest.mark.asyncio
-
-
-config = Config(
-    endpoint_url="http://localhost:4566",
-    aws_access_key_id="id",
-    aws_secret_access_key="secret",
-    region_name="us-east-1",
+from fondat.aws.cloudwatch import (
+    CloudWatchMonitor,
+    Dimension,
+    MetricDatum,
+    StatisticSet,
+    cloudwatch_resource,
 )
+from fondat.monitor import Measurement
+from pytest import fixture
 
 
-@pytest.fixture(scope="function")
-async def service():
-    service = Service(name="cloudwatch", config=config)
-    yield service
-    await service.close()
+_now = lambda: datetime.now(tz=timezone.utc)
 
 
-@pytest.fixture(scope="function")
-async def metric_type():
-    metric = cw.Metric(
-        name="operation_requests_per_second",
-        dimensions={"tenant_id": str(uuid4())},
-        value=1234,
-        timestamp=datetime.now(tz=timezone.utc),
-        unit="Count",
+NAMESPACE = "Fondat/Test"
+
+
+@fixture(scope="module")
+def namespace_resource():
+    return cloudwatch_resource().namespace(NAMESPACE)
+
+
+async def test_put_metric_value(namespace_resource):
+    await namespace_resource.post(
+        metric_data=[
+            MetricDatum(
+                metric_name="test_put_metric_value",
+                dimensions=[Dimension(name="foo", value="bar")],
+                timestamp=_now(),
+                value=1.23,
+                unit="Kilobytes",
+                storage_resolution=60,
+            )
+        ]
     )
-    yield metric
 
 
-@pytest.fixture(scope="function")
-async def measurement_counter():
-    _now = lambda: datetime.now(tz=timezone.utc)
-    _tags = {"name": "test"}
-    measurement = Measurement(tags=_tags, timestamp=_now(), type="counter", value=1)
-    yield measurement
+async def test_put_metric_values(namespace_resource):
+    await namespace_resource.post(
+        metric_data=[
+            MetricDatum(
+                metric_name="test_put_metric_values",
+                timestamp=_now(),
+                values=[2.34, 3.45],
+                counts=[2.0, 4.0],
+                unit="Bytes",
+                storage_resolution=1,
+            )
+        ]
+    )
 
 
-@pytest.fixture(scope="function")
-async def measurement_absolute():
-    _now = lambda: datetime.now(tz=timezone.utc)
-    _tags = {"name": "test"}
-    measurement = Measurement(tags=_tags, timestamp=_now(), type="absolute", value=1)
-    yield measurement
+async def test_put_metric_statistics(namespace_resource):
+    await namespace_resource.post(
+        metric_data=[
+            MetricDatum(
+                metric_name="test_put_metric_values",
+                timestamp=_now(),
+                statistic_values=StatisticSet(
+                    sample_count=123.0,
+                    sum=63.733388507698265,
+                    minimum=0.02425279885047038,
+                    maximum=0.9989390658635393,
+                ),
+                unit="Bytes/Second",
+                storage_resolution=60,
+            )
+        ]
+    )
 
 
-@pytest.fixture(scope="function")
-async def measurement_gauge():
-    _now = lambda: datetime.now(tz=timezone.utc)
-    _tags = {"name": "test"}
-    measurement = Measurement(tags=_tags, timestamp=_now(), type="gauge", value=1)
-    yield measurement
-
-
-@pytest.fixture(scope="function")
-async def measurement_gauge_1():
-    _now = lambda: datetime.now(tz=timezone.utc)
-    _tags = {"name": "test"}
-    measurement = Measurement(tags=_tags, timestamp=_now(), type="gauge", value=2)
-    yield measurement
-
-
-async def test_put_metric(service, metric_type):
-    resource = cw.cloudwatch_resource(service=service).namespace("Mperativ/Tripper")
-    await resource.post(metrics=[metric_type])
-
-
-async def test_put_counter(service, measurement_counter):
-    cwm = CloudWatchMonitor(service=service, namespace="Mperativ/Tripper")
-    await cwm.record(measurement_counter)
-
-
-async def test_put_absolute(service, measurement_absolute):
-    cwm = CloudWatchMonitor(service=service, namespace="Mperativ/Tripper")
-    await cwm.record(measurement_absolute)
-
-
-async def test_put_gauge(service, measurement_gauge, measurement_gauge_1):
-    cwm = CloudWatchMonitor(service=service, namespace="Mperativ/Tripper")
-    await cwm.record(measurement_gauge)
-    await cwm.record(measurement_gauge_1)
+async def test_monitor():
+    monitor = CloudWatchMonitor(namespace=NAMESPACE, storage_resolution=60)
+    for n in range(10):
+        await monitor.record(
+            Measurement(
+                name="test_monitor",
+                tags={"a": "b"},
+                type="gauge",
+                value=n,
+                unit="MB/s",
+            )
+        )
+    await monitor.flush()

@@ -1,85 +1,70 @@
-import pytest
-
 import asyncio
+import fondat.aws.client
+import pytest
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from fondat.aws import Config, Service
 from fondat.aws.s3 import bucket_resource
 from fondat.error import NotFoundError
 from fondat.pagination import paginate
-from typing import Optional, TypedDict
+from pytest import fixture
+from typing import TypedDict
 from uuid import uuid4
 
 
-pytestmark = pytest.mark.asyncio
-
-
-config = Config(
-    endpoint_url="http://localhost:4566",
-    aws_access_key_id="id",
-    aws_secret_access_key="secret",
-)
-
-
-@pytest.fixture(scope="module")
+@fixture(scope="module")
 def event_loop():
     loop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest.fixture(scope="module")
-async def service():
-    service = Service(name="s3", config=config)
-    yield service
-    await service.close()
+@fixture(scope="module")
+async def client():
+    async with fondat.aws.client.create_client("s3") as client:
+        yield client
 
 
-@pytest.fixture(scope="function")
-async def client(service):
-    client = await service.client()
-    yield client
+async def _empty(bucket):
+    async with fondat.aws.client.create_client("s3") as client:
+        while "Contents" in (response := await client.list_objects_v2(Bucket=bucket)):
+            for item in response["Contents"]:
+                await client.delete_object(Bucket=bucket, Key=item["Key"])
 
 
-async def _empty_bucket(client, bucket):
-    while "Contents" in (response := await client.list_objects_v2(Bucket=bucket)):
-        for item in response["Contents"]:
-            await client.delete_object(Bucket=bucket, Key=item["Key"])
-
-
-@pytest.fixture(scope="function")
-async def bucket(client):
+@fixture(scope="module")
+async def _bucket(client):
     name = str(uuid4())
     await client.create_bucket(Bucket=name)
     try:
         yield name
     finally:
-        await _empty_bucket(client, name)
+        await _empty(name)
         await client.delete_bucket(Bucket=name)
 
 
-async def test_crud(service, bucket):
+@fixture(scope="function")
+async def bucket(_bucket):
+    await _empty(_bucket)
+    yield _bucket
+
+
+async def test_crud(bucket):
     @dataclass
     class DC:
         id: str
-        str_: Optional[str]
-        dict_: Optional[TypedDict("TD", {"a": int})]
-        list_: Optional[list[int]]
-        set_: Optional[set[str]]
-        int_: Optional[int]
-        float_: Optional[float]
-        bool_: Optional[bool]
-        bytes_: Optional[bytes]
-        date_: Optional[date]
-        datetime_: Optional[datetime]
+        str_: str | None
+        dict_: TypedDict("TD", {"a": int}) | None
+        list_: list[int] | None
+        set_: set[str] | None
+        int_: int | None
+        float_: float | None
+        bool_: bool | None
+        bytes_: bytes | None
+        date_: date | None
+        datetime_: datetime | None
 
-    resource = bucket_resource(
-        service=service,
-        bucket=bucket,
-        key_type=str,
-        value_type=DC,
-    )
+    resource = bucket_resource(bucket=bucket, key_type=str, value_type=DC)
     id = "7af8410d-ffa3-4598-bac8-9ac0e488c9df"
     value = DC(
         id=id,
@@ -113,35 +98,32 @@ async def test_crud(service, bucket):
         await r.get()
 
 
-async def test_pagination(service, bucket):
-    resource = bucket_resource(
-        service=service,
-        bucket=bucket,
-        key_type=str,
-        value_type=str,
-    )
-    assert len([v async for v in paginate(resource.get)]) == 0
-    for n in range(0, 11):
-        await resource[f"{n:04d}"].put("value")
-    assert len([v async for v in paginate(resource.get)]) == 11
-    page = await resource.get(limit=10)
-    assert len(page.items) == 10
-    page = await resource.get(limit=10, cursor=page.cursor)
-    assert len(page.items) == 1
-
-
-async def test_folder(service, bucket):
-    resource = bucket_resource(
-        service=service,
-        bucket=bucket,
-        folder="folder",
-        key_type=str,
-        value_type=str,
-    )
+async def test_pagination(bucket):
+    resource = bucket_resource(bucket=bucket, key_type=str, value_type=str)
     assert len([v async for v in paginate(resource.get)]) == 0
     count = 10
+    for n in range(count):
+        await resource[f"{n:04d}"].put("value")
+    assert len([v async for v in paginate(resource.get)]) == count
+    page = await resource.get(limit=count - 2)
+    assert len(page.items) == count - 2
+    page = await resource.get(cursor=page.cursor)
+    assert len(page.items) == 2
+
+
+async def test_prefix_suffix(bucket):
+    resource = bucket_resource(
+        bucket=bucket,
+        prefix="prefix/",
+        suffix=".bin",
+        key_type=str,
+        value_type=str,
+    )
+    assert len([v async for v in paginate(resource.get)]) == 0
+    count = 5
     for n in range(0, count):
         await resource[f"{n:04d}"].put(str(n))
-    assert len([v async for v in paginate(resource.get)]) == count
-    for n in range(0, count):
-        assert await resource[f"{n:04d}"].get() == str(n)
+    keys = [key async for key in paginate(resource.get)]
+    assert len(keys) == count
+    for key in keys:
+        assert await resource[key].get() == str(int(key))

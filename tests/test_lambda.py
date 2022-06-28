@@ -2,10 +2,10 @@ import fondat.http
 import http
 import multidict
 
-from base64 import b64encode, b64decode
+from base64 import b64decode, b64encode
 from fondat.aws.lambda_ import async_function, http_function
 from fondat.http import AsBody
-from fondat.resource import resource, operation
+from fondat.resource import operation, resource
 from typing import Annotated
 
 
