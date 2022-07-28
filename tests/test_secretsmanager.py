@@ -3,7 +3,7 @@ import fondat.aws.client
 import pytest
 
 from pytest import fixture
-from fondat.aws.secrets import Secret, secrets_resource
+from fondat.aws.secretsmanager import Secret, secrets_resource
 from fondat.error import BadRequestError, NotFoundError
 from uuid import uuid4
 
