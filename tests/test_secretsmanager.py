@@ -2,9 +2,9 @@ import asyncio
 import fondat.aws.client
 import pytest
 
-from pytest import fixture
 from fondat.aws.secretsmanager import Secret, secrets_resource
 from fondat.error import BadRequestError, NotFoundError
+from pytest import fixture
 from uuid import uuid4
 
 

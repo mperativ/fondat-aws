@@ -28,11 +28,11 @@ packages = [
 [tool.poetry.dependencies]
 aiobotocore = "^2.3"
 python = "^3.10"
-fondat = "^4.0a4"
+fondat = "^4.0a5"
 
 [tool.poetry.dev-dependencies]
 black = "^22.6"
-pre-commit = "^2.19"
+pre-commit = "^2.20"
 pytest = "^7.1"
 pytest-asyncio = "^0.18"
 pytest-cov = "^3.0"
