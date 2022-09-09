@@ -2,7 +2,6 @@
 
 import fondat.aws.client
 import fondat.codec
-import fondat.pagination
 import logging
 
 from collections.abc import Iterable
@@ -10,6 +9,7 @@ from contextlib import asynccontextmanager
 from fondat.aws.client import Config
 from fondat.codec import Binary, String
 from fondat.error import InternalServerError, NotFoundError
+from fondat.pagination import Page
 from fondat.resource import operation, resource
 from fondat.security import Policy
 from fondat.validation import validate_arguments
@@ -106,8 +106,6 @@ def bucket_resource(
                     _logger.error(e)
                     raise InternalServerError from e
 
-    Page = fondat.pagination.make_page_dataclass("Page", str)
-
     @resource
     class Bucket:
         """S3 bucket resource."""
@@ -117,7 +115,7 @@ def bucket_resource(
             self,
             limit: int | None = None,
             cursor: bytes | None = None,
-        ) -> Page:
+        ) -> Page[str]:
             kwargs = {}
             if limit and limit > 0:
                 kwargs["MaxKeys"] = limit
@@ -135,7 +133,6 @@ def bucket_resource(
                             for content in response.get("Contents", ())
                         ],
                         cursor=next_token.encode() if next_token else None,
-                        remaining=None,
                     )
                     return page
                 except Exception as e:
