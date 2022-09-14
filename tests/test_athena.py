@@ -135,7 +135,7 @@ async def test_crud(database):
         "timestamp": datetime(2021, 9, 12, 9, 0, 0),
     }
 
-    await table.insert(values=row)
+    await table.insert(row=row)
     rows = [r async for r in await table.select()]
     assert rows == [row]
 
@@ -147,7 +147,7 @@ async def test_crud(database):
     row["string"] = "strung"
     row["timestamp"] = datetime(2021, 9, 13, 9, 0, 0)
 
-    await table.update(values=row, where=Expression("id = ", Param(row["id"])))
+    await table.update(row=row, where=Expression("id = ", Param(row["id"])))
     rows = [r async for r in await table.select()]
     assert rows == [row]
 

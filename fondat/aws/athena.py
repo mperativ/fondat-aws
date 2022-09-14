@@ -738,45 +738,45 @@ class Table:
     async def insert(
         self,
         *,
-        values: dict[str, Any],
+        row: dict[str, Any],
     ):
         """
         Insert row into table.
 
         Parmeters:
-        • values: column values to insert
+        • row: column key-value pairs to insert
         """
 
-        types = self.python_types(values.keys())
+        types = self.python_types(row.keys())
 
         stmt = Expression(
             f'INSERT INTO "{self.name}" (',
-            Expression.join([f'"{k}"' for k in values.keys()], ", "),
+            Expression.join([f'"{k}"' for k in row.keys()], ", "),
             ") VALUES (",
-            Expression.join([Param(v, types[k]) for k, v in values.items()], ", "),
+            Expression.join([Param(v, types[k]) for k, v in row.items()], ", "),
             ")",
         )
 
         await self.database.execute(stmt)
 
-    async def update(self, *, values: dict[str, Any], where: Expression | None):
+    async def update(self, *, row: dict[str, Any], where: Expression | None):
         """
         Update row(s) in table.
 
         Parmeters:
-        • values: column values to update
+        • row: column key-value pairs to update
         • where: WHERE expression to select rows to update or None to update all
         """
 
-        if not values:
+        if not row:
             return
 
-        types = self.python_types(values.keys())
+        types = self.python_types(row.keys())
 
         stmt = Expression(
             f'UPDATE "{self.name}" SET ',
             Expression.join(
-                [Expression(f'"{k}"=', Param(v, types[k])) for k, v in values.items()], ", "
+                [Expression(f'"{k}"=', Param(v, types[k])) for k, v in row.items()], ", "
             ),
         )
         if where:
