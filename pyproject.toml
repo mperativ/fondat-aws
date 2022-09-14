@@ -32,6 +32,7 @@ fondat = "^4.0a10"
 
 [tool.poetry.dev-dependencies]
 black = "^22.8"
+isort = "^5.10"
 pre-commit = "^2.20"
 pytest = "^7.1"
 pytest-asyncio = "^0.19"
