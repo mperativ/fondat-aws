@@ -680,9 +680,11 @@ class Table:
         columns: Set[str] | None = None,
         where: Expression | str | None = None,
         order_by: Expression | str | None = None,
-        page_size: int = DEFAULT_PAGE_SIZE,
         offset: int | None = None,
         limit: int | None = None,
+        system_time: datetime | Expression | None = None,
+        system_version: int | Expression | None = None,
+        page_size: int = DEFAULT_PAGE_SIZE,
     ) -> AsyncIterator[dict[str, Any]]:
         """
         Select rows from table.
@@ -690,13 +692,24 @@ class Table:
         • columns: names of columns to select or None to select all columns
         • where: WHERE expression to select rows or None to select all
         • order_by: ORDER BY expression
-        • page_size: number of rows to retrieve in each request to Athena
         • offset: number of rows to skip
         • limit: limit the number of rows returned
+        • system_time: timestamp for time travel query
+        • system_version: snapshot for time travel query
+        • page_size: number of rows to retrieve in each request to Athena
         """
 
         if not columns:
             columns = {c.name for c in self.columns}
+
+        if system_time and system_version:
+            raise ValueError("can only specify one of system_time and system_version")
+
+        if system_time and not isinstance(system_time, Expression):
+            system_time = Param(system_time)
+
+        if system_version and not isinstance(system_version, Expression):
+            system_version = Param(system_version)
 
         stmt = Expression("SELECT ")
         stmt += Expression.join([f'"{column}"' for column in columns], ", ")
@@ -711,6 +724,10 @@ class Table:
             stmt += f" OFFSET {offset}"
         if limit is not None:
             stmt += f" LIMIT {limit}"
+        if system_time is not None:
+            stmt += Expression(" FOR SYSTEM_TIME AS OF ", system_time)
+        if system_version is not None:
+            stmt += Expression(" FOR SYSTEM_VERSION AS OF ", system_version)
 
         return await self.database.execute(
             statement=stmt,
