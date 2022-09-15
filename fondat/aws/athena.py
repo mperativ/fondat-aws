@@ -546,7 +546,7 @@ class Database:
 
 def athena_python_type(athena_type: str) -> Any:
     """Return a Python type compatible with the specified Athena type."""
-    match re.fullmatch(r"([a-z]+).*").group(1):
+    match re.fullmatch(r"([a-z]+).*", athena_type).group(1):
         case "boolean":
             return bool
         case "tinyint" | "smallint" | "int" | "integer" | "bigint":
