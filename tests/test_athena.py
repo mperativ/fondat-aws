@@ -9,8 +9,8 @@ from fondat.aws.athena import Column, Expression, Param, Table
 from fondat.types import literal_values
 from pytest import fixture
 from types import NoneType
-from typing import Literal, TypedDict
-from uuid import UUID, uuid4
+from typing import Literal
+from uuid import UUID
 
 
 @fixture(scope="module")
