@@ -1,6 +1,7 @@
 """AWS Athena module."""
 
 import asyncio
+import fondat.aws.client
 import fondat.codec
 import fondat.sql
 import re
@@ -8,17 +9,19 @@ import types
 import typing
 
 from collections import deque
-from collections.abc import AsyncIterator, Iterable, Set
-from contextlib import contextmanager, suppress
+from collections.abc import AsyncGenerator, AsyncIterator, Iterable, Set
+from contextlib import asynccontextmanager, contextmanager, suppress
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from fondat.resource import operation, query
 from fondat.aws.client import create_client
 from fondat.codec import DecodeError, EncodeError
+from fondat.pagination import Page
 from fondat.types import is_subclass, literal_values, split_annotated
 from functools import cache
 from types import NoneType
-from typing import Any, Generic, TypedDict, TypeVar, is_typeddict
+from typing import Annotated, Any, Generic, Literal, TypeVar
 from uuid import UUID
 
 
@@ -29,7 +32,10 @@ Param = fondat.sql.Param
 T = TypeVar("T")
 
 
-DEFAULT_PAGE_SIZE = 1000
+@asynccontextmanager
+async def create_client():
+    async with fondat.aws.client.create_client("athena") as client:
+        yield client
 
 
 @contextmanager
@@ -109,7 +115,7 @@ class FloatCodec(Codec[float]):
             return float(value)
 
 
-class StrCodec(Codec):
+class StrCodec(Codec[str]):
     @staticmethod
     def handles(python_type: Any) -> bool:
         return python_type is str
@@ -243,7 +249,7 @@ class UnionCodec(Codec[T]):
 class LiteralCodec(Codec[T]):
     @staticmethod
     def handles(python_type: T) -> bool:
-        return typing.get_origin(python_type) is typing.Literal
+        return typing.get_origin(python_type) is Literal
 
     def __init__(self, python_type: Any):
         super().__init__(python_type)
@@ -276,95 +282,157 @@ def get_codec(python_type: type[T]) -> Codec[T]:
     raise TypeError(f"no codec for {python_type}")
 
 
-class Results(AsyncIterator[T]):
-    """
-    Results of a statement execution.
+class QueryExecutionResource:
+    """Resource representing a query execution."""
 
-    Parameters:
-    • statement: statement that was executed
-    • query_execution_id: identifies Athena query execution
-    • page_size: number of rows to retrieve in each page request
-    • result_type: the type in which to return each row result
+    def __init__(self, id: str):
+        self.id = id
 
-    A valid result type can be one of:
-    • dataclass: column names are object attributes
-    • TypedDict: column names are dictionary keys
-    • list[type]: columns are returned in the order queried
+    @operation
+    async def get(self) -> dict[str, Any]:
+        """Get query execution."""
+        async with create_client() as client:
+            return await client.get_query_execution(QueryExecutionId=self.id)
+
+    @query
+    async def results(
+        self,
+        limit: Annotated[int | None, "requested maximum rows to retrieve"] = None,
+        cursor: Annotated[bytes | None, "cursor to continue pagination"] = None,
+        decode: Annotated[bool, "decode column values"] = True,
+    ) -> Page[dict[str, Any]]:
+        """Get a page of results from a query execution."""
+        kwargs = {"QueryExecutionId": self.id}
+        if limit is not None:
+            kwargs["MaxResults"] = limit
+        if cursor is not None:
+            kwargs["NextToken"] = cursor.decode()
+        async with create_client() as client:
+            response = await client.get_query_results(**kwargs)
+        rows = [
+            [datum.get("VarCharValue") for datum in row["Data"]]
+            for row in response["ResultSet"]["Rows"]
+        ]
+        if not rows:
+            return Page(items=[], cursor=None)
+        names = [ci["Name"] for ci in response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]]
+        if not cursor and rows[0] == names:
+            del rows[0]  # skip apparent header
+        next_token = response.get("NextToken")
+        cursor = next_token.encode() if next_token else None
+        codecs = (
+            [
+                get_codec(athena_python_type(ci["Type"]))
+                for ci in response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
+            ]
+            if decode
+            else None
+        )
+        return Page(
+            items=[
+                {
+                    names[n]: codecs[n].decode(row[n]) if codecs else row[n]
+                    for n in range(len(row))
+                }
+                for row in rows
+            ],
+            cursor=cursor,
+        )
+
+
+class QueryExecutionsResource:
+    """Resource representing query executions."""
+
+    @operation
+    async def get(
+        self,
+        workgroup: str | None = None,
+        limit: int | None = None,
+        cursor: bytes | None = None,
+    ) -> Page[str]:
+        """List available query executions."""
+        kwargs={}
+        if workgroup is not None:
+            kwargs["WorkGroup"] = workgroup
+        if limit is not None:
+            kwargs["MaxResults"] = limit
+        if cursor is not None:
+            kwargs["NextToken"] = cursor.encode()
+        async with create_client() as client:
+            response = client.list_query_executions()
+        next_token = response.get("NextToken")
+        cursor = next_token.encode() if next_token else None
+        return Page(items=response["QueryExecution"], cursor=cursor)
+
+
+    @operation
+    async def post(
+        self,
+        database: Annotated[str, "name of database used in query execution"],
+        catalog: Annotated[str, "name of catalog used in query execution"],
+        query: Annotated[str, "SQL query statement to be executd"],
+        output_location: Annotated[str | None, "location in S3 to store results"] = None,
+        workgroup: Annotated[str | None, "name of workgroup in which query is started"] = None,
+    ) -> Annotated[str, "query execution ID"]:
+        """Start a query execution."""
+        kwargs = {}
+        kwargs["QueryString"] = query
+        kwargs["QueryExecutionContext"] = {"Database": database, "Catalog": catalog}
+        if output_location:
+            kwargs["ResultConfiguration"] = {"OutputLocation": output_location}
+        if workgroup:
+            kwargs["WorkGroup"] = workgroup
+        async with create_client() as client:
+            response = await client.start_query_execution(**kwargs)
+        return response["QueryExecutionId"]
+
+    def __getitem__(self, id: Annotated[str, "query execution ID"]) -> QueryExecutionResource:
+        return QueryExecutionResource(id)
+
+
+class Results(AsyncIterator[dict[str, Any]]):
     """
+    Paginates results of a statement execution.
+
+    Parameters and attributes:
+    • query_execution_id: identifies query for which to paginate results
+    • decode: decode results using response metadata
+    • page_size: number of rows to request in each page
+    """
+
+    _FIRST_PAGE = object()  # semaphore
 
     def __init__(
         self,
-        statement: Expression,
         query_execution_id: str,
+        decode: bool,
         page_size: int,
-        result_type: type[T],
     ):
-        self.statement = statement
-        self.query_execution_id = query_execution_id
+        self.query_execution_resource = QueryExecutionResource(query_execution_id)
+        self.decode = decode
         self.page_size = page_size
-        self.result_type = result_type
-        self.codecs = None
-        self.rows = deque()
-        self.columns = None
-        self.next_token = None
+        self.rows = None
+        self.cursor = Results._FIRST_PAGE
 
     def __aiter__(self):
         return self
 
-    async def __anext__(self) -> T:
-
-        while self.columns is None or (not self.rows and self.next_token):
-
-            kwargs = {"QueryExecutionId": self.query_execution_id, "MaxResults": self.page_size}
-
-            if self.next_token is not None:
-                kwargs["NextToken"] = self.next_token
-
-            async with create_client("athena") as client:
-                response = await client.get_query_results(**kwargs)
-
-            first_row = self.columns is None
-
-            if self.columns is None:
-                self.columns = [
-                    column["Name"]
-                    for column in response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
-                ]
-
-            for result in response["ResultSet"]["Rows"]:
-                row = [datum.get("VarCharValue") for datum in result["Data"]]
-                if first_row:
-                    first_row = False
-                    if row == self.columns:
-                        continue  # skip apparent header row
-                self.rows.append(row)
-
-            self.next_token = response.get("NextToken")
-
+    async def __anext__(self) -> dict[str, Any]:
+        while not self.rows and self.cursor:
+            page = await self.query_execution_resource.results(
+                cursor=self.cursor if self.cursor is not Results._FIRST_PAGE else None,
+                limit=self.page_size,
+                decode=self.decode,
+            )
+            self.rows = deque(page.items)
+            self.cursor = page.cursor
         if not self.rows:
             raise StopAsyncIteration
-
-        if not self.codecs:
-            if typing.get_origin(self.result_type) is list:
-                codec = get_codec(typing.get_args(self.result_type)[0])
-                self.codecs = [codec for n in range(len(self.columns))]
-            else:
-                hints = typing.get_type_hints(self.result_type, include_extras=True)
-                self.codecs = [get_codec(hints[key]) for key in self.columns]
-
-        row = self.rows.popleft()
-        decoded = [self.codecs[n].decode(row[n]) for n in range(len(row))]
-
-        if typing.get_origin(self.result_type) is list:
-            return decoded
-
-        d = {self.columns[n]: decoded[n] for n in range(len(self.columns))}
-
-        return d if is_typeddict(self.result_type) else self.result_type(**d)
+        return self.rows.popleft()
 
 
 def expand_expression(expression: Expression) -> str:
-    """Expand an expression into SQL query text."""
+    """Expand an expression into SQL text."""
     text = []
     for fragment in expression:
         match fragment:
@@ -404,61 +472,52 @@ class Database:
     async def execute(
         self,
         statement: Expression | str,
+        decode: bool = True,
+        page_size: int = 1000,
         workgroup: str | None = None,
         output_location: str | None = None,
-        page_size: int = DEFAULT_PAGE_SIZE,
-        result_type: type[T] | None = None,
-    ) -> Results[T] | None:
+    ) -> Results:
         """
-        Execute a SQL statement, optionally returning a result object to iterate results.
+        Execute a SQL statement, returning an object to iterate any query results.
 
         Parameters:
         • statement: SQL statement to execute
+        • decode: decode results using response metadata
+        • page_size: number of rows to request in each page
         • workgroup: workgroup to excute query, or use database default
         • output_location: output location for query results, or use database default
-        • page_size: number of rows to retrieve in each request to Athena
-        • result_type: the type in which to return each row result
 
-        A valid result type can be one of:
-        • dataclass: column names are object attributes
-        • TypedDict: column names are dictionary keys
-        • list[type]: columns are returned in the order queried
+        This method blocks until statement execution has completed. If an error occurs
+        executing the statement, a RuntimeError is raised.
         """
 
-        workgroup = workgroup or self.workgroup
-        output_location = output_location or self.output_location
-        query = statement if isinstance(statement, str) else expand_expression(statement)
+        query_executions_resource = QueryExecutionsResource()
 
-        async with create_client("athena") as client:
+        query_execution_id = await query_executions_resource.post(
+            database=self.name,
+            catalog=self.catalog,
+            query=statement if isinstance(statement, str) else expand_expression(statement),
+            output_location=output_location or self.output_location,
+            workgroup=workgroup or self.workgroup,
+        )
 
-            kwargs = {}
-            kwargs["QueryString"] = query
-            kwargs["QueryExecutionContext"] = {"Database": self.name, "Catalog": self.catalog}
+        query_execution_resource = query_executions_resource[query_execution_id]
 
-            if output_location:
-                kwargs["ResultConfiguration"] = {"OutputLocation": output_location}
+        state = "QUEUED"
+        sleep = 0
 
-            if workgroup:
-                kwargs["WorkGroup"] = workgroup
+        while state in {"QUEUED", "RUNNING"}:
+            await asyncio.sleep(sleep)
+            sleep = min((sleep * 2.0) or 0.1, 5.0)  # backout: 0.1 → 5 seconds
+            result = await query_execution_resource.get()
+            state = result["QueryExecution"]["Status"]["State"]
 
-            response = await client.start_query_execution(**kwargs)
-            query_execution_id = response["QueryExecutionId"]
+        if state != "SUCCEEDED":
+            raise RuntimeError(
+                result["QueryExecution"]["Status"]["AthenaError"]["ErrorMessage"]
+            )
 
-            state = "QUEUED"
-            sleep = 0
-            while state in {"QUEUED", "RUNNING"}:
-                await asyncio.sleep(sleep)
-                sleep = min((sleep * 2.0) or 0.1, 5.0)  # backout: 0.1 → 5 seconds
-                query_execution = await client.get_query_execution(
-                    QueryExecutionId=query_execution_id
-                )
-                state = query_execution["QueryExecution"]["Status"]["State"]
-
-            if state != "SUCCEEDED":
-                raise RuntimeError(query_execution)
-
-            if result_type:
-                return Results(statement, query_execution_id, page_size, result_type)
+        return Results(query_execution_id, decode, page_size)
 
     async def create(
         self,
@@ -508,13 +567,12 @@ class Database:
     async def table_names(self) -> set[str]:
         """Return a set of table names in database."""
         return {
-            row[0]
+            row["table_name"]
             async for row in await self.execute(
                 Expression(
                     "SELECT table_name FROM information_schema.tables WHERE table_schema = ",
                     Param(self.name),
-                ),
-                result_type=list[str],
+                )
             )
         }
 
@@ -526,48 +584,50 @@ class Database:
         • name: name of table
         """
         subst = {"real": "float", "varchar": "string", "varbinary": "binary"}
-        async with create_client("athena") as client:
-            columns = [
-                Column(row[0], subst.get(row[1].lower(), row[1]))
-                async for row in await self.execute(
-                    Expression(
-                        "SELECT column_name, data_type FROM information_schema.columns ",
-                        "WHERE table_schema = ",
-                        Param(self.name),
-                        " AND table_name = ",
-                        Param(name),
-                        " ORDER BY ordinal_position",
-                    ),
-                    result_type=list[str],
-                )
-            ]
+        columns = [
+            Column(row["column_name"], subst.get(row["data_type"].lower(), row["data_type"]))
+            async for row in await self.execute(
+                Expression(
+                    "SELECT column_name, data_type FROM information_schema.columns ",
+                    "WHERE table_schema = ",
+                    Param(self.name),
+                    " AND table_name = ",
+                    Param(name),
+                    " ORDER BY ordinal_position",
+                ),
+            )
+        ]
         return Table(database=self, name=name, columns=columns)
+
+
+_athena_type_pattern = re.compile(r"([a-z]+).*")
 
 
 def athena_python_type(athena_type: str) -> Any:
     """Return a Python type compatible with the specified Athena type."""
-    match re.fullmatch(r"([a-z]+).*", athena_type).group(1):
+    match _athena_type_pattern.fullmatch(athena_type).group(1):
         case "boolean":
-            return bool
+            return bool | None
         case "tinyint" | "smallint" | "int" | "integer" | "bigint":
-            return int
-        case "double" | "float":
-            return float
+            return int | None
+        case "double" | "float" | "real":
+            return float | None
         case "decimal":
-            return Decimal
-        case "char" | "varchar" | "string":
-            return str
-        case "binary":
-            return bytes
+            return Decimal | None
+        case "char" | "varchar" | "string" | "unknown":
+            return str | None
+        case "binary" | "varbinary":
+            return bytes | None
         case "date":
-            return date
+            return date | None
         case "timestamp":
-            return datetime
+            return datetime | None
+    raise ValueError(f"unrecognized Athena type: {athena_type}")
 
 
 @dataclass
 class Column:
-    """Represents a database column."""
+    """A table column."""
 
     name: str
     athena_type: str
@@ -583,7 +643,7 @@ class Column:
 
 class Table:
     """
-    Represents a table in a database.
+    A database table.
 
     Parameters and attributes:
     • database: database where the table is managed
@@ -684,23 +744,23 @@ class Table:
         limit: int | None = None,
         system_time: datetime | Expression | None = None,
         system_version: int | Expression | None = None,
-        page_size: int = DEFAULT_PAGE_SIZE,
-    ) -> AsyncIterator[dict[str, Any]]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """
         Select rows from table.
 
         • columns: names of columns to select or None to select all columns
-        • where: WHERE expression to select rows or None to select all
-        • order_by: ORDER BY expression
+        • where: expression to select rows or None to select all
+        • order_by: expression to order results
         • offset: number of rows to skip
         • limit: limit the number of rows returned
         • system_time: timestamp for time travel query
         • system_version: snapshot for time travel query
-        • page_size: number of rows to retrieve in each request to Athena
         """
 
         if not columns:
-            columns = {c.name for c in self.columns}
+            columns = {column.name for column in self.columns}
+
+        codecs = {column.name: get_codec(column.python_type) for column in self.columns}
 
         if system_time and system_version:
             raise ValueError("can only specify one of system_time and system_version")
@@ -729,11 +789,8 @@ class Table:
         if system_version is not None:
             stmt += Expression(" FOR SYSTEM_VERSION AS OF ", system_version)
 
-        return await self.database.execute(
-            statement=stmt,
-            page_size=page_size,
-            result_type=TypedDict("Row", self.python_types(columns)),
-        )
+        async for row in await self.database.execute(statement=stmt, decode=False):
+            yield {key: codecs[key].decode(value) for key, value in row.items()}
 
     async def insert(
         self,
@@ -765,7 +822,7 @@ class Table:
 
         Parmeters:
         • row: column key-value pairs to update
-        • where: WHERE expression to select rows to update or None to update all
+        • where: expression to select rows to update or None to update all
         """
 
         if not row:
@@ -790,7 +847,7 @@ class Table:
         Delete row(s) in table.
 
         Parmeters:
-        • where: WHERE expression to select rows to delete or None to delete all
+        • where: expression to select rows to delete or None to delete all
         """
         stmt = Expression(f'DELETE FROM "{self.name}"')
         if where:

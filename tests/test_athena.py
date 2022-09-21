@@ -30,14 +30,14 @@ async def database():
 
 
 async def _test_values(type, *values):
+    codec = athena.get_codec(type)
     db = athena.Database(name="foo", workgroup="primary")
     stmt = Expression("SELECT ")
     v = []
     for n in range(len(values)):
         v.append(Expression(Param(values[n], type), f" AS v{n}"))
     stmt += Expression.join(v, ", ")
-    TD = TypedDict("TD", {f"v{n}": type for n in range(len(values))})
-    async for row in await db.execute(stmt, result_type=TD):
+    async for row in await db.execute(stmt, decode=True):
         for n in range(len(values)):
             assert row[f"v{n}"] == values[n]
 
@@ -78,10 +78,6 @@ async def test_datetime():
     )
 
 
-async def test_uuid():
-    await _test_values(UUID, UUID("2093f88a-99ab-4807-87f7-ab3997a199b5"), uuid4())
-
-
 async def test_none():
     await _test_values(NoneType, None)
 
@@ -94,6 +90,13 @@ async def test_union():
 async def test_literal():
     L = Literal["a", "b", "c"]
     await _test_values(L, *literal_values(L))
+
+
+async def test_uuid(database):
+    value = UUID("2093f88a-99ab-4807-87f7-ab3997a199b5")
+    stmt = Expression("SELECT ", Param(value), " AS value")
+    async for row in await database.execute(stmt, decode=True):
+        assert athena.get_codec(UUID).decode(row["value"]) == value
 
 
 async def test_crud(database):
@@ -136,7 +139,7 @@ async def test_crud(database):
     }
 
     await table.insert(row=row)
-    rows = [r async for r in await table.select()]
+    rows = [r async for r in table.select()]
     assert rows == [row]
 
     row["boolean"] = False
@@ -148,9 +151,39 @@ async def test_crud(database):
     row["timestamp"] = datetime(2021, 9, 13, 9, 0, 0)
 
     await table.update(row=row, where=Expression("id = ", Param(row["id"])))
-    rows = [r async for r in await table.select()]
+    rows = [r async for r in table.select()]
     assert rows == [row]
 
     await table.delete(where=Expression("id = ", Param(row["id"])))
-    rows = [r async for r in await table.select()]
+    rows = [r async for r in table.select()]
     assert len(rows) == 0
+
+    await table.drop()
+
+
+async def test_pagination(database):
+
+    table = Table(
+        database=database,
+        name="foo",
+        columns=[
+            Column("id", "bigint", int)
+        ]
+    )
+
+    await table.create(
+        external=False,
+        location=f"s3://fondat/lake1/{database.name}/foo/",
+        properties={"table_type": "ICEBERG"},
+    )
+
+    ROW_COUNT = 10
+
+    for n in range(ROW_COUNT):
+        row = {"id": n}
+        await table.insert(row=row)
+
+    rows = [row async for row in await database.execute("SELECT id FROM foo", page_size=2)]
+    assert len(rows) == ROW_COUNT
+
+    await table.drop()
