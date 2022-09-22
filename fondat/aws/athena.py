@@ -292,7 +292,8 @@ class QueryExecutionResource:
     async def get(self) -> dict[str, Any]:
         """Get query execution."""
         async with create_client() as client:
-            return await client.get_query_execution(QueryExecutionId=self.id)
+            response = await client.get_query_execution(QueryExecutionId=self.id)
+            return response["QueryExecution"]
 
     @query
     async def results(
@@ -362,7 +363,7 @@ class QueryExecutionsResource:
             response = client.list_query_executions()
         next_token = response.get("NextToken")
         cursor = next_token.encode() if next_token else None
-        return Page(items=response["QueryExecution"], cursor=cursor)
+        return Page(items=response["QueryExecutionIds"], cursor=cursor)
 
 
     @operation
@@ -510,12 +511,10 @@ class Database:
             await asyncio.sleep(sleep)
             sleep = min((sleep * 2.0) or 0.1, 5.0)  # backout: 0.1 → 5 seconds
             result = await query_execution_resource.get()
-            state = result["QueryExecution"]["Status"]["State"]
+            state = result["Status"]["State"]
 
         if state != "SUCCEEDED":
-            raise RuntimeError(
-                result["QueryExecution"]["Status"]["AthenaError"]["ErrorMessage"]
-            )
+            raise RuntimeError(result["Status"]["AthenaError"]["ErrorMessage"])
 
         return Results(query_execution_id, decode, page_size)
 
