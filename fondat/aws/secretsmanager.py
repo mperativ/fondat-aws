@@ -9,7 +9,7 @@ from fondat.aws.client import Config, wrap_client_error
 from fondat.data import datacls
 from fondat.error import NotFoundError
 from fondat.http import AsBody, InBody
-from fondat.memory import memory_resource
+from fondat.memory import MemoryResource
 from fondat.resource import operation, resource
 from fondat.security import Policy
 from typing import Annotated, Any
@@ -44,7 +44,7 @@ def secrets_resource(
             yield client
 
     cache = (
-        memory_resource(
+        MemoryResource(
             key_type=str,
             value_type=Secret,
             size=cache_size,
