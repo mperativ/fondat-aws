@@ -4,7 +4,7 @@ import pytest
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from fondat.aws.s3 import bucket_resource
+from fondat.aws.s3 import BucketResource
 from fondat.error import NotFoundError
 from fondat.pagination import paginate
 from pytest import fixture
@@ -64,7 +64,7 @@ async def test_crud(bucket):
         date_: date | None
         datetime_: datetime | None
 
-    resource = bucket_resource(bucket=bucket, key_type=str, value_type=DC)
+    resource = BucketResource(name=bucket, value_type=DC)
     id = "7af8410d-ffa3-4598-bac8-9ac0e488c9df"
     value = DC(
         id=id,
@@ -99,7 +99,7 @@ async def test_crud(bucket):
 
 
 async def test_pagination(bucket):
-    resource = bucket_resource(bucket=bucket, key_type=str, value_type=str)
+    resource = BucketResource(name=bucket, value_type=str)
     assert len([v async for v in paginate(resource.get)]) == 0
     count = 10
     for n in range(count):
@@ -112,11 +112,10 @@ async def test_pagination(bucket):
 
 
 async def test_prefix_suffix(bucket):
-    resource = bucket_resource(
-        bucket=bucket,
+    resource = BucketResource(
+        name=bucket,
         prefix="prefix/",
         suffix=".bin",
-        key_type=str,
         value_type=str,
     )
     assert len([v async for v in paginate(resource.get)]) == 0

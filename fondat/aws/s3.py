@@ -4,142 +4,148 @@ import fondat.aws.client
 import fondat.codec
 import logging
 
-from collections.abc import Iterable
 from contextlib import asynccontextmanager
-from fondat.aws.client import Config
-from fondat.codec import Binary, String
+from fondat.codec import Binary, DecodeError, String, get_codec
 from fondat.error import InternalServerError, NotFoundError
 from fondat.pagination import Page
 from fondat.resource import operation, resource
-from fondat.security import Policy
-from fondat.validation import validate_arguments
-from typing import Any
+from typing import Any, Generic, TypeVar
 from urllib.parse import quote
 
 
 _logger = logging.getLogger(__name__)
 
 
-@validate_arguments
-def bucket_resource(
-    bucket: str,
-    *,
-    prefix: str | None = None,
-    suffix: str | None = None,
-    key_type: type,
-    value_type: type,
-    compress: Any = None,
-    encode_keys: bool = False,
-    config: Config | None = None,
-    policies: Iterable[Policy] | None = None,
-):
-    """
-    Create S3 bucket resource.
+@asynccontextmanager
+async def create_client():
+    async with fondat.aws.client.create_client("s3") as client:
+        yield client
 
-    Parameters:
-    • bucket: name of bucket to contain objects
-    • prefix: prefix for all objects
-    • suffix: suffix for all objects
+
+K = TypeVar("K")
+V = TypeVar("V")
+
+
+@resource
+class BucketResource(Generic[K, V]):
+    """
+    S3 bucket resource.
+
+    Parameters and attributes:
+    • name: bucket name
     • key_type: type of key to identify object
     • value_type: type of value stored in each object
+    • prefix: prefix for all objects
+    • suffix: suffix for all objects
     • compress: algorithm to compress and decompress content
     • encode_keys: URL encode and decode object keys
-    • config: client configuration
-    • policies: security policies to apply to all operations
     """
 
-    prefix = prefix or ""
-    suffix = suffix or ""
+    def __init__(
+        self,
+        name: str,
+        *,
+        key_type: type[K] = str,
+        value_type: type[V] = bytes,
+        prefix: str = "",
+        suffix: str = "",
+        encode_keys: bool = False,
+    ):
+        self.name = name
+        self.key_type = key_type
+        self.value_type = value_type
+        self.prefix = prefix
+        self.suffix = suffix
+        self.encode_keys = encode_keys
 
-    key_codec = fondat.codec.get_codec(String, key_type)
-    value_codec = fondat.codec.get_codec(Binary, value_type)
+        self._key_codec = get_codec(String, key_type)
+        self._value_codec = get_codec(Binary, value_type) if not issubclass(key_type, Stream) else None
 
-    @asynccontextmanager
-    async def create_client():
-        async with fondat.aws.client.create_client("s3", config=config) as client:
-            yield client
 
-    @resource
-    class Object:
-        """S3 object resource."""
-
-        def __init__(self, key: key_type):
-            key = key_codec.encode(key)
-            if encode_keys:
-                key = quote(key, safe="")
-            self._key = f"{prefix}{key}{suffix}"
-
-        @operation(policies=policies)
-        async def get(self) -> value_type:
-            async with create_client() as client:
+    @operation
+    async def get(self, limit: int | None = None, cursor: bytes | None = None) -> Page[K]:
+        kwargs = {}
+        if limit and limit > 0:
+            kwargs["MaxKeys"] = limit
+        if self.prefix:
+            kwargs["Prefix"] = self.prefix
+        if cursor is not None:
+            kwargs["ContinuationToken"] = cursor.decode()
+        async with create_client() as client:
+            try:
+                response = await client.list_objects_v2(Bucket=self.name, **kwargs)
+            except Exception as e:
+                _logger.error(e)
+                raise InternalServerError from e
+            items = []
+            for content in response.get("Contents", ()):
+                key = content["Key"]
+                if not key.endswith(self.suffix):
+                    continue  # ignore non-matching object keys
+                key = key[len(self.prefix) : len(key) - len(self.suffix)]
                 try:
-                    response = await client.get_object(Bucket=bucket, Key=self._key)
-                    async with response["Body"] as stream:
-                        body = await stream.read()
-                    if compress:
-                        body = compress.decompress(body)
-                    return value_codec.decode(body)
-                except client.exceptions.NoSuchKey:
-                    raise NotFoundError
-                except Exception as e:
-                    _logger.error(e)
-                    raise InternalServerError from e
+                    key = self._key_codec.decode(key)
+                except DecodeError:
+                    continue  # ignore incompatible object keys
+                items.append(key)
+            next_token = response.get("NextContinuationToken")
+            cursor = next_token.encode() if next_token is not None else None
+            return Page(items=items, cursor=cursor)
 
-        @operation(policies=policies)
-        async def put(self, value: value_type) -> None:
-            body = value_codec.encode(value)
-            if compress:
-                body = compress.compress(body)
-            async with create_client() as client:
-                try:
-                    await client.put_object(Bucket=bucket, Key=self._key, Body=body)
-                except Exception as e:
-                    _logger.error(e)
-                    raise InternalServerError from e
+    def __getitem__(self, key: K) -> "ObjectResource[K, V]":
+        return ObjectResource(bucket=self, key=key)
 
-        @operation(policies=policies)
-        async def delete(self) -> None:
-            async with create_client() as client:
-                try:
-                    await client.delete_object(Bucket=bucket, Key=self._key)
-                except Exception as e:
-                    _logger.error(e)
-                    raise InternalServerError from e
 
-    @resource
-    class Bucket:
-        """S3 bucket resource."""
+@resource
+class ObjectResource(Generic[K, V]):
+    """
+    S3 object resource.
 
-        @operation(policies=policies)
-        async def get(
-            self,
-            limit: int | None = None,
-            cursor: bytes | None = None,
-        ) -> Page[str]:
-            kwargs = {}
-            if limit and limit > 0:
-                kwargs["MaxKeys"] = limit
-            if prefix:
-                kwargs["Prefix"] = prefix
-            if cursor is not None:
-                kwargs["ContinuationToken"] = cursor.decode()
-            async with create_client() as client:
-                try:
-                    response = await client.list_objects_v2(Bucket=bucket, **kwargs)
-                    next_token = response.get("NextContinuationToken")
-                    page = Page(
-                        items=[
-                            content["Key"][len(prefix) : len(content["Key"]) - len(suffix)]
-                            for content in response.get("Contents", ())
-                        ],
-                        cursor=next_token.encode() if next_token else None,
-                    )
-                    return page
-                except Exception as e:
-                    _logger.error(e)
-                    raise InternalServerError from e
+    Parameters and attributes:
+    • bucket: superodinate bucket resource
+    • key: object key
+    """
 
-        def __getitem__(self, key: key_type) -> Object:
-            return Object(key)
+    def __init__(self, bucket: BucketResource[K, V], key: K):
+        self.bucket = bucket
+        self.key = key
 
-    return Bucket()
+    @property
+    def _key(self) -> str:
+        key = self.bucket._key_codec.encode(self.key)
+        if self.bucket.encode_keys:
+            key = quote(key, safe="")
+        return f"{self.bucket.prefix}{key}{self.bucket.suffix}"
+
+    @operation
+    async def get(self) -> V:
+        async with create_client() as client:
+            try:
+                response = await client.get_object(Bucket=self.bucket.name, Key=self._key)
+                async with response["Body"] as stream:
+                    body = await stream.read()
+                return self.bucket._value_codec.decode(body)
+            except client.exceptions.NoSuchKey:
+                raise NotFoundError
+            except Exception as e:
+                _logger.error(e)
+                raise InternalServerError from e
+
+    @operation
+    async def put(self, value: V) -> None:
+        body = self.bucket._value_codec.encode(value)
+        async with create_client() as client:
+            try:
+                await client.put_object(Bucket=self.bucket.name, Key=self._key, Body=body)
+            except Exception as e:
+                _logger.error(e)
+                raise InternalServerError from e
+
+    @operation
+    async def delete(self) -> None:
+        async with create_client() as client:
+            try:
+                await client.delete_object(Bucket=self.bucket.name, Key=self._key)
+            except Exception as e:
+                _logger.error(e)
+                raise InternalServerError from e
