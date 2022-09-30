@@ -16,12 +16,11 @@ from datetime import date, datetime
 from decimal import Decimal
 from fondat.resource import operation, query
 from fondat.aws.client import create_client
-from fondat.codec import DecodeError, EncodeError
+from fondat.codec import Codec, DecodeError, EncodeError
 from fondat.pagination import Page
-from fondat.types import is_subclass, literal_values, split_annotated
-from functools import cache
+from fondat.types import is_subclass, literal_values, strip_annotations
 from types import NoneType
-from typing import Annotated, Any, Generic, Literal, TypeVar
+from typing import Annotated, Any, Literal, TypeVar
 from uuid import UUID
 
 
@@ -29,7 +28,8 @@ Expression = fondat.sql.Expression
 Param = fondat.sql.Param
 
 
-T = TypeVar("T")
+PT = TypeVar("PT")  # Python type hint
+AT = Any  # Athena type hint
 
 
 @asynccontextmanager
@@ -46,209 +46,227 @@ def _reraise(exception: Exception):
         raise exception from e
 
 
-class Codec(Generic[T]):
+class AthenaCodec(Codec[PT, AT]):
     """Base class for Athena codecs."""
 
-    def __init__(self, python_type: type[T]):
-        self.python_type = python_type
-
-    @staticmethod
-    def handles(python_type: type) -> bool:
-        """Return True if the codec handles the specified Python type."""
-        raise NotImplementedError
-
-    @staticmethod
-    def encode(value: T) -> str:
-        """Encode a Python value to a compatible Athena query expression."""
-        raise NotImplementedError
-
-    @staticmethod
-    def decode(value: Any) -> T:
-        """Decode a Athena result value to a compatible Python value."""
-        raise NotImplementedError
+    _cache = {}
 
 
-class BoolCodec(Codec[bool]):
+class BoolCodec(AthenaCodec[bool]):
+    """..."""
+
     @staticmethod
     def handles(python_type: Any) -> bool:
+        python_type = strip_annotations(python_type)
         return python_type is bool
 
     @staticmethod
-    def encode(value: bool) -> str:
+    def encode(value: bool) -> AT:
         return {True: "TRUE", False: "FALSE"}[value]
 
     @staticmethod
-    def decode(value: Any) -> bool:
+    def decode(value: AT) -> bool:
         with _reraise(DecodeError):
             return {"TRUE": True, "FALSE": False}[value.upper()]
 
 
-class IntCodec(Codec[int]):
+class IntCodec(AthenaCodec[int]):
+    """..."""
+
     @staticmethod
     def handles(python_type: Any) -> bool:
+        python_type = strip_annotations(python_type)
         return is_subclass(python_type, int) and not is_subclass(python_type, bool)
 
     @staticmethod
-    def encode(value: int) -> str:
+    def encode(value: int) -> AT:
         return str(value)
 
     @staticmethod
-    def decode(value: Any) -> int:
+    def decode(value: AT) -> int:
         if not isinstance(value, str):
             raise DecodeError
         with _reraise(DecodeError):
             return int(value)
 
 
-class FloatCodec(Codec[float]):
+class FloatCodec(AthenaCodec[float]):
+    """..."""
+
     @staticmethod
     def handles(python_type: Any) -> bool:
+        python_type = strip_annotations(python_type)
         return is_subclass(python_type, float)
 
-    def encode(self, value: float) -> str:
+    def encode(self, value: float) -> AT:
         return str(value)
 
-    def decode(self, value: Any) -> float:
+    def decode(self, value: AT) -> float:
         if not isinstance(value, str):
             raise DecodeError
         with _reraise(DecodeError):
             return float(value)
 
 
-class StrCodec(Codec[str]):
+class StrCodec(AthenaCodec[str]):
+    """..."""
+
     @staticmethod
     def handles(python_type: Any) -> bool:
+        python_type = strip_annotations(python_type)
         return python_type is str
 
-    def encode(self, value: str) -> str:
+    def encode(self, value: str) -> AT:
         return "'" + value.replace("'", "''") + "'"
 
-    def decode(self, value: Any) -> str:
+    def decode(self, value: AT) -> str:
         if not isinstance(value, str):
             raise DecodeError
         return value
 
 
-class BytesCodec(Codec[bytes | bytearray]):
+class BytesCodec(AthenaCodec[bytes | bytearray]):
+    """..."""
+
     @staticmethod
     def handles(python_type: Any) -> bool:
+        python_type = strip_annotations(python_type)
         return is_subclass(python_type, (bytes, bytearray))
 
-    def encode(self, value: bytes | bytearray) -> str:
+    def encode(self, value: bytes | bytearray) -> AT:
         with _reraise(EncodeError):
             return "X'" + value.hex() + "'"
 
-    def decode(self, value: Any) -> bytes | bytearray:
+    def decode(self, value: AT) -> bytes | bytearray:
         if not isinstance(value, str):
             raise DecodeError
         with _reraise(DecodeError):
             return bytes.fromhex(value)
 
 
-class DecimalCodec(Codec[Decimal]):
+class DecimalCodec(AthenaCodec[Decimal]):
+    """..."""
+
     @staticmethod
     def handles(python_type: Any) -> bool:
+        python_type = strip_annotations(python_type)
         return is_subclass(python_type, Decimal)
 
-    def encode(self, value: Decimal) -> str:
+    def encode(self, value: Decimal) -> AT:
         return "DECIMAL '" + str(value) + "'"
 
-    def decode(self, value: Any) -> Decimal:
+    def decode(self, value: AT) -> Decimal:
         if not isinstance(value, str):
             raise DecodeError
         with _reraise(DecodeError):
             return Decimal(value)
 
 
-class DateCodec(Codec[date]):
+class DateCodec(AthenaCodec[date]):
+    """..."""
+
     @staticmethod
     def handles(python_type: Any) -> bool:
+        python_type = strip_annotations(python_type)
         return is_subclass(python_type, date) and not is_subclass(python_type, datetime)
 
-    def encode(self, value: date) -> str:
+    def encode(self, value: date) -> AT:
         return "DATE '" + value.isoformat() + "'"
 
-    def decode(self, value: Any) -> date:
+    def decode(self, value: AT) -> date:
         if not isinstance(value, str):
             raise DecodeError
         with _reraise(DecodeError):
             return date.fromisoformat(value)
 
 
-class DatetimeCodec(Codec[datetime]):
+class DatetimeCodec(AthenaCodec[datetime]):
+    """..."""
+
     @staticmethod
     def handles(python_type: Any) -> bool:
+        python_type = strip_annotations(python_type)
         return is_subclass(python_type, datetime)
 
-    def encode(self, value: datetime) -> str:
+    def encode(self, value: datetime) -> AT:
         if value.tzinfo is not None:  # doesn't support time zone yet
             raise EncodeError
         return "TIMESTAMP '" + value.isoformat(sep=" ", timespec="milliseconds") + "'"
 
-    def decode(self, value: Any) -> datetime:
+    def decode(self, value: AT) -> datetime:
         if not isinstance(value, str):
             raise DecodeError
         return datetime.fromisoformat(value)
 
 
-class UUIDCodec(Codec[UUID]):
+class UUIDCodec(AthenaCodec[UUID]):
+    """..."""
+
     @staticmethod
     def handles(python_type: Any) -> bool:
+        python_type = strip_annotations(python_type)
         return is_subclass(python_type, UUID)
 
-    def encode(self, value: UUID) -> str:
+    def encode(self, value: UUID) -> AT:
         return f"'{str(value)}'"
 
-    def decode(self, value: Any) -> UUID:
+    def decode(self, value: AT) -> UUID:
         if not isinstance(value, str):
             raise DecodeError
         with _reraise(DecodeError):
             return UUID(value)
 
 
-class NoneCodec(Codec[NoneType]):
+class NoneCodec(AthenaCodec[NoneType]):
+    """..."""
+
     @staticmethod
     def handles(python_type: Any) -> bool:
+        python_type = strip_annotations(python_type)
         return python_type is NoneType
 
-    def encode(self, value: NoneType) -> str:
+    def encode(self, value: NoneType) -> AT:
         return "NULL"
 
-    def decode(self, value: Any) -> NoneType:
+    def decode(self, value: AT) -> NoneType:
         if value is not None:
             raise DecodeError
         return None
 
 
-class UnionCodec(Codec[T]):
+class UnionCodec(AthenaCodec[PT]):
+    """..."""
+
     @staticmethod
-    def handles(python_type: T) -> bool:
-        return (
-            isinstance(python_type, types.UnionType)
-            or typing.get_origin(python_type) is typing.Union
-        )
+    def handles(python_type: Any) -> bool:
+        python_type = strip_annotations(python_type)
+        origin = typing.get_origin(python_type) or python_type
+        return origin in {types.UnionType, typing.Union}
 
     def __init__(self, python_type: Any):
         super().__init__(python_type)
-        self.codecs = [get_codec(arg) for arg in typing.get_args(python_type)]
+        self.codecs = [AthenaCodec.get(arg) for arg in typing.get_args(python_type)]
 
-    def encode(self, value: T) -> str:
+    def encode(self, value: PT) -> AT:
         for codec in self.codecs:
             if codec.handles(type(value)):
                 with suppress(EncodeError):
                     return codec.encode(value)
         raise EncodeError
 
-    def decode(self, value: Any) -> T:
+    def decode(self, value: AT) -> PT:
         for codec in self.codecs:
             with suppress(DecodeError):
                 return codec.decode(value)
         raise DecodeError
 
 
-class LiteralCodec(Codec[T]):
+class LiteralCodec(AthenaCodec[PT]):
+    """..."""
+
     @staticmethod
-    def handles(python_type: T) -> bool:
+    def handles(python_type: Any) -> bool:
+        python_type = strip_annotations(python_type)
         return typing.get_origin(python_type) is Literal
 
     def __init__(self, python_type: Any):
@@ -257,29 +275,16 @@ class LiteralCodec(Codec[T]):
         types = list({type(literal) for literal in self.literals})
         if len(types) != 1:
             raise TypeError("mixed-type literals not supported")
-        self.codec = get_codec(types[0])
+        self.codec = AthenaCodec.get(types[0])
 
-    def encode(self, value: T) -> str:
+    def encode(self, value: PT) -> AT:
         return self.codec.encode(value)
 
-    def decode(self, value: Any) -> T:
+    def decode(self, value: AT) -> PT:
         result = self.codec.decode(value)
         if result not in self.literals:
             raise DecodeError
         return result
-
-
-@cache
-def get_codec(python_type: type[T]) -> Codec[T]:
-    """Return a codec compatible with the specified Python type."""
-
-    python_type, _ = split_annotated(python_type)
-
-    for codec_class in Codec.__subclasses__():
-        if codec_class.handles(python_type):
-            return codec_class(python_type)
-
-    raise TypeError(f"no codec for {python_type}")
 
 
 class QueryExecutionResource:
@@ -323,7 +328,7 @@ class QueryExecutionResource:
         cursor = next_token.encode() if next_token else None
         codecs = (
             [
-                get_codec(athena_python_type(ci["Type"]))
+                AthenaCodec.get(athena_python_type(ci["Type"]))
                 for ci in response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
             ]
             if decode
@@ -352,7 +357,7 @@ class QueryExecutionsResource:
         cursor: bytes | None = None,
     ) -> Page[str]:
         """List available query executions."""
-        kwargs={}
+        kwargs = {}
         if workgroup is not None:
             kwargs["WorkGroup"] = workgroup
         if limit is not None:
@@ -364,7 +369,6 @@ class QueryExecutionsResource:
         next_token = response.get("NextToken")
         cursor = next_token.encode() if next_token else None
         return Page(items=response["QueryExecutionIds"], cursor=cursor)
-
 
     @operation
     async def post(
@@ -440,7 +444,7 @@ def expand_expression(expression: Expression) -> str:
             case str():
                 text.append(fragment)
             case Param():
-                text.append(get_codec(fragment.type).encode(fragment.value))
+                text.append(AthenaCodec.get(fragment.type).encode(fragment.value))
             case _:
                 raise ValueError(f"unexpected fragment: {fragment}")
     return "".join(text)
@@ -759,7 +763,7 @@ class Table:
         if not columns:
             columns = {column.name for column in self.columns}
 
-        codecs = {column.name: get_codec(column.python_type) for column in self.columns}
+        codecs = {column.name: AthenaCodec.get(column.python_type) for column in self.columns}
 
         if system_time and system_version:
             raise ValueError("can only specify one of system_time and system_version")

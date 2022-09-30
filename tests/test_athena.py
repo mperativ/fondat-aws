@@ -30,7 +30,7 @@ async def database():
 
 
 async def _test_values(type, *values):
-    codec = athena.get_codec(type)
+    codec = athena.AthenaCodec.get(type)
     db = athena.Database(name="foo", workgroup="primary")
     stmt = Expression("SELECT ")
     v = []
@@ -96,7 +96,7 @@ async def test_uuid(database):
     value = UUID("2093f88a-99ab-4807-87f7-ab3997a199b5")
     stmt = Expression("SELECT ", Param(value), " AS value")
     async for row in await database.execute(stmt, decode=True):
-        assert athena.get_codec(UUID).decode(row["value"]) == value
+        assert athena.AthenaCodec.get(UUID).decode(row["value"]) == value
 
 
 async def test_crud(database):
