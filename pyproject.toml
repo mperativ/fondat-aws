@@ -28,7 +28,7 @@ packages = [
 [tool.poetry.dependencies]
 aiobotocore = "^2.4"
 python = "^3.10"
-fondat = "^4.0a10"
+fondat = "^4.0b2"
 
 [tool.poetry.dev-dependencies]
 black = "^22.8"
