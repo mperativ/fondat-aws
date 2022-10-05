@@ -5,10 +5,11 @@ import fondat.codec
 import logging
 
 from contextlib import asynccontextmanager
-from fondat.codec import Binary, DecodeError, String, get_codec
+from fondat.codec import BinaryCodec, DecodeError, StringCodec
 from fondat.error import InternalServerError, NotFoundError
 from fondat.pagination import Page
 from fondat.resource import operation, resource
+from fondat.types import is_subclass, strip_annotations
 from typing import Any, Generic, TypeVar
 from urllib.parse import quote
 
@@ -22,12 +23,12 @@ async def create_client():
         yield client
 
 
-K = TypeVar("K")
-V = TypeVar("V")
+KT = TypeVar("KT")  # key type hint
+VT = TypeVar("VT")  # value type hint
 
 
 @resource
-class BucketResource(Generic[K, V]):
+class BucketResource(Generic[KT, VT]):
     """
     S3 bucket resource.
 
@@ -45,25 +46,26 @@ class BucketResource(Generic[K, V]):
         self,
         name: str,
         *,
-        key_type: type[K] = str,
-        value_type: type[V] = bytes,
+        key_type: Any = str,
+        value_type: Any = bytes,
         prefix: str = "",
         suffix: str = "",
         encode_keys: bool = False,
     ):
         self.name = name
-        self.key_type = key_type
         self.value_type = value_type
         self.prefix = prefix
         self.suffix = suffix
         self.encode_keys = encode_keys
-
-        self._key_codec = get_codec(String, key_type)
-        self._value_codec = get_codec(Binary, value_type) if not issubclass(key_type, Stream) else None
+        self.key_codec = StringCodec.get(key_type)
 
 
     @operation
-    async def get(self, limit: int | None = None, cursor: bytes | None = None) -> Page[K]:
+    async def get(
+        self,
+        limit: int | None = None,
+        cursor: bytes | None = None,
+    ) -> Page[KT]:
         kwargs = {}
         if limit and limit > 0:
             kwargs["MaxKeys"] = limit
@@ -84,7 +86,7 @@ class BucketResource(Generic[K, V]):
                     continue  # ignore non-matching object keys
                 key = key[len(self.prefix) : len(key) - len(self.suffix)]
                 try:
-                    key = self._key_codec.decode(key)
+                    key = self.key_codec.decode(key)
                 except DecodeError:
                     continue  # ignore incompatible object keys
                 items.append(key)
@@ -92,12 +94,19 @@ class BucketResource(Generic[K, V]):
             cursor = next_token.encode() if next_token is not None else None
             return Page(items=items, cursor=cursor)
 
-    def __getitem__(self, key: K) -> "ObjectResource[K, V]":
-        return ObjectResource(bucket=self, key=key)
+    def __getitem__(self, key: KT) -> "ObjectResource[VT]":
+        key = self.key_codec.encode(key)
+        if self.encode_keys:
+            key = quote(key, safe="")
+        return ObjectResource(
+            bucket=self.name,
+            key=f"{self.prefix}{key}{self.suffix}",
+            type=self.value_type
+        )
 
 
 @resource
-class ObjectResource(Generic[K, V]):
+class ObjectResource(Generic[VT]):
     """
     S3 object resource.
 
@@ -106,25 +115,25 @@ class ObjectResource(Generic[K, V]):
     • key: object key
     """
 
-    def __init__(self, bucket: BucketResource[K, V], key: K):
+    def __init__(
+        self,
+        bucket: str,
+        key: str,
+        type: Any,
+    ):
         self.bucket = bucket
         self.key = key
-
-    @property
-    def _key(self) -> str:
-        key = self.bucket._key_codec.encode(self.key)
-        if self.bucket.encode_keys:
-            key = quote(key, safe="")
-        return f"{self.bucket.prefix}{key}{self.bucket.suffix}"
+        self.type = strip_annotations(type)
+        self.codec = BinaryCodec.get(type)
 
     @operation
-    async def get(self) -> V:
+    async def get(self) -> VT:
         async with create_client() as client:
             try:
-                response = await client.get_object(Bucket=self.bucket.name, Key=self._key)
+                response = await client.get_object(Bucket=self.bucket, Key=self.key)
                 async with response["Body"] as stream:
                     body = await stream.read()
-                return self.bucket._value_codec.decode(body)
+                return self.codec.decode(body)
             except client.exceptions.NoSuchKey:
                 raise NotFoundError
             except Exception as e:
@@ -132,11 +141,11 @@ class ObjectResource(Generic[K, V]):
                 raise InternalServerError from e
 
     @operation
-    async def put(self, value: V) -> None:
-        body = self.bucket._value_codec.encode(value)
+    async def put(self, value: VT) -> None:
+        body = self.codec.encode(value)
         async with create_client() as client:
             try:
-                await client.put_object(Bucket=self.bucket.name, Key=self._key, Body=body)
+                await client.put_object(Bucket=self.bucket, Key=self.key, Body=body)
             except Exception as e:
                 _logger.error(e)
                 raise InternalServerError from e
@@ -145,7 +154,7 @@ class ObjectResource(Generic[K, V]):
     async def delete(self) -> None:
         async with create_client() as client:
             try:
-                await client.delete_object(Bucket=self.bucket.name, Key=self._key)
+                await client.delete_object(Bucket=self.bucket, Key=self.key)
             except Exception as e:
                 _logger.error(e)
                 raise InternalServerError from e
