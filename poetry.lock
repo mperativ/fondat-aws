@@ -199,7 +199,7 @@ docs = ["sphinx-autodoc-typehints (>=1.19.1)", "sphinx (>=5.1.1)", "furo (>=2022
 
 [[package]]
 name = "fondat"
-version = "4.0b2"
+version = "4.0b4"
 description = "A foundation for resource-oriented backend applications."
 category = "main"
 optional = false
@@ -221,7 +221,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "identify"
-version = "2.5.5"
+version = "2.5.6"
 description = "File identification library for Python"
 category = "dev"
 optional = false
@@ -531,7 +531,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "cec314f719ca9a44ab08cee5349a94a71eef69627d64df167a892892f69fa20f"
+content-hash = "0dc8172a9510494f49c13200db253d3d65f3c73fcc1e85ecb6ba9de65845d0e2"
 
 [metadata.files]
 aiobotocore = []
