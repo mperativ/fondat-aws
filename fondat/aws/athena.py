@@ -14,10 +14,10 @@ from contextlib import asynccontextmanager, contextmanager, suppress
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from fondat.resource import operation, query
 from fondat.aws.client import create_client
 from fondat.codec import Codec, DecodeError, EncodeError
 from fondat.pagination import Page
+from fondat.resource import operation, query
 from fondat.types import is_subclass, literal_values, strip_annotations
 from types import NoneType
 from typing import Annotated, Any, Literal, TypeVar

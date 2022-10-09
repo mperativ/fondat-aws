@@ -163,13 +163,7 @@ async def test_crud(database):
 
 async def test_pagination(database):
 
-    table = Table(
-        database=database,
-        name="foo",
-        columns=[
-            Column("id", "bigint", int)
-        ]
-    )
+    table = Table(database=database, name="foo", columns=[Column("id", "bigint", int)])
 
     await table.create(
         external=False,

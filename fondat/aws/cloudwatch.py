@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from copy import copy
 from datetime import datetime, timezone
 from fondat.aws.client import Config, create_client
-from fondat.codec import JSON, get_codec
+from fondat.codec import JSONCodec
 from fondat.data import datacls
 from fondat.http import AsBody
 from fondat.monitor import Measurement, Monitor
@@ -118,7 +118,7 @@ def _naming(value: Any) -> Any:
 
 
 def _awsify(value: Any) -> dict[str, Any]:
-    return _naming(get_codec(JSON, type(value)).encode(value))
+    return _naming(JSONCodec.get(type(value)).encode(value))
 
 
 def cloudwatch_resource(

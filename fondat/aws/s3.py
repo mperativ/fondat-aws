@@ -9,7 +9,7 @@ from fondat.codec import BinaryCodec, DecodeError, StringCodec
 from fondat.error import InternalServerError, NotFoundError
 from fondat.pagination import Page
 from fondat.resource import operation, resource
-from fondat.types import is_subclass, strip_annotations
+from fondat.types import strip_annotations
 from typing import Any, Generic, TypeVar
 from urllib.parse import quote
 
@@ -59,7 +59,6 @@ class BucketResource(Generic[KT, VT]):
         self.encode_keys = encode_keys
         self.key_codec = StringCodec.get(key_type)
 
-
     @operation
     async def get(
         self,
@@ -99,9 +98,7 @@ class BucketResource(Generic[KT, VT]):
         if self.encode_keys:
             key = quote(key, safe="")
         return ObjectResource(
-            bucket=self.name,
-            key=f"{self.prefix}{key}{self.suffix}",
-            type=self.value_type
+            bucket=self.name, key=f"{self.prefix}{key}{self.suffix}", type=self.value_type
         )
 
 
