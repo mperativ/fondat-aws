@@ -154,14 +154,17 @@ async def test_stream_unknown_length(bucket):
         def __init__(self, content):
             super().__init__(content_type="application/octet-stream")
             self._content = content
+
         async def __anext__(self):
             if self._content:
                 result = self._content
                 self._content = None
                 return result
             raise StopAsyncIteration
+
         async def close(self):
             self._content = None
+
     body = randbytes(fondat.aws.s3.CHUNK_SIZE // 2)
     object = ObjectResource(bucket=bucket, key="key", type=Stream)
     await object.put(UnknownLengthStream(body))  # unknown length should upload as multipart

@@ -10,13 +10,11 @@ from fondat.codec import BinaryCodec, DecodeError, StringCodec
 from fondat.error import InternalServerError, NotFoundError
 from fondat.pagination import Page
 from fondat.resource import operation, resource
-from fondat.types import strip_annotations
 from fondat.stream import Reader, Stream
-from typing import Any, Generic, TypeVar
-from urllib.parse import quote
-
+from fondat.types import strip_annotations
 from fondat.validation import MinValue, validate_arguments
-from typing import Annotated
+from typing import Annotated, Any, Generic, TypeVar
+from urllib.parse import quote
 
 
 _logger = logging.getLogger(__name__)
@@ -197,7 +195,7 @@ class ObjectResource(Generic[VT]):
                                 }
                                 for n in range(len(etags))
                             ]
-                        }
+                        },
                     )
         except Exception as e:
             if upload_id:  # attempt to about upload if created
@@ -210,12 +208,10 @@ class ObjectResource(Generic[VT]):
             _logger.error(e)
             raise InternalServerError from e
 
-
     @operation
     async def put(self, value: VT) -> None:
         if not await self._basic_upload(value):
             await self._multipart_upload(value)
-
 
     @operation
     async def delete(self) -> None:
@@ -255,9 +251,7 @@ class ObjectStream(Stream):
                 await self.close()
             raise
         Stream.__init__(
-            self,
-            content_type=response["ContentType"],
-            content_length=response["ContentLength"]
+            self, content_type=response["ContentType"], content_length=response["ContentLength"]
         )
         self._body = response["Body"]
         return self
