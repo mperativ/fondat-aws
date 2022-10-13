@@ -1,13 +1,16 @@
 import asyncio
 import fondat.aws.client
+import fondat.aws.s3
 import pytest
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from fondat.aws.s3 import BucketResource
+from fondat.aws.s3 import BucketResource, ObjectResource
 from fondat.error import NotFoundError
 from fondat.pagination import paginate
+from fondat.stream import BytesStream, Reader, Stream
 from pytest import fixture
+from random import randbytes
 from typing import TypedDict
 from uuid import uuid4
 
@@ -126,3 +129,42 @@ async def test_prefix_suffix(bucket):
     assert len(keys) == count
     for key in keys:
         assert await resource[key].get() == str(int(key))
+
+
+async def test_stream_basic(bucket):
+    body = randbytes(fondat.aws.s3.CHUNK_SIZE // 2)
+    object = ObjectResource(bucket=bucket, key="key", type=Stream)
+    await object.put(BytesStream(body))  # should perform single put_object
+    async with Reader(await object.get()) as reader:
+        read = await reader.read()
+    assert body == read
+
+
+async def test_stream_multipart(bucket):
+    body = randbytes(2 * fondat.aws.s3.CHUNK_SIZE + fondat.aws.s3.CHUNK_SIZE // 2)
+    object = ObjectResource(bucket=bucket, key="key", type=Stream)
+    await object.put(BytesStream(body))  # should upload as multipart
+    async with Reader(await object.get()) as reader:
+        read = await reader.read()
+    assert body == read
+
+
+async def test_stream_unknown_length(bucket):
+    class UnknownLengthStream(Stream):
+        def __init__(self, content):
+            super().__init__(content_type="application/octet-stream")
+            self._content = content
+        async def __anext__(self):
+            if self._content:
+                result = self._content
+                self._content = None
+                return result
+            raise StopAsyncIteration
+        async def close(self):
+            self._content = None
+    body = randbytes(fondat.aws.s3.CHUNK_SIZE // 2)
+    object = ObjectResource(bucket=bucket, key="key", type=Stream)
+    await object.put(UnknownLengthStream(body))  # unknown length should upload as multipart
+    async with Reader(await object.get()) as reader:
+        read = await reader.read()
+    assert body == read
