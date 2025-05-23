@@ -55,7 +55,7 @@ async def create_client(
         api_version=api_version,
         use_ssl=True,
         verify=config.verify if config else True,
-        endpoint_url=config.endpoint.url if config else None,
+        endpoint_url=config.endpoint_url if config else None,
         aws_access_key_id=config.aws_access_key_id if config else None,
         aws_secret_access_key=config.aws_secret_access_key if config else None,
         aws_session_token=config.aws_session_token if config else None,
