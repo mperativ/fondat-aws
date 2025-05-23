@@ -4,6 +4,7 @@ import pytest
 import fondat
 import botocore.exceptions
 from fondat.aws.bedrock.resources.agents import AgentsResource
+from fondat.aws.bedrock.resources.prompts import PromptsResource
 
 
 async def test_list_operations_errors(mock_clients, config):
@@ -43,9 +44,7 @@ async def test_list_operations_errors(mock_clients, config):
         operation_name="ListPrompts",
     )
     with pytest.raises(botocore.exceptions.ClientError):
-        await AgentsResource(config_agent=config, config_runtime=config)[
-            "agent-1"
-        ].prompts.get()
+        await PromptsResource(config_agent=config).get()
 
 
 async def test_wrap_client_error(mock_clients, config):

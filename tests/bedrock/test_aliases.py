@@ -1,6 +1,7 @@
 """Tests for bedrock aliases and collaborators functionality."""
 
 from fondat.aws.bedrock.resources.agents import AgentsResource
+from fondat.aws.bedrock.resources.prompts import PromptsResource
 from fondat.pagination import Page
 
 
@@ -100,9 +101,7 @@ async def test_list_prompts(mock_clients, config):
         "promptSummaries": [{"promptId": "p1"}],
         "nextToken": "p",
     }
-    page = await AgentsResource(config_agent=config, config_runtime=config)[
-        "agent-1"
-    ].prompts.get()
+    page = await PromptsResource(config_agent=config).get()
     assert isinstance(page, Page)
     agent_client.list_prompts.assert_called_once_with()
 
@@ -119,9 +118,7 @@ async def test_get_prompt(mock_clients, config):
         "updatedAt": "2024-01-01T00:00:00Z",
         "version": "v1"
     }
-    res = await AgentsResource(config_agent=config, config_runtime=config)[
-        "agent-1"
-    ].prompts.get_prompt("p1")
+    res = await PromptsResource(config_agent=config).get_prompt("p1")
     assert res["id"] == "p1"
     agent_client.get_prompt.assert_called_once_with(promptIdentifier="p1")
 

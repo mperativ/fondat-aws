@@ -14,7 +14,6 @@ from .versions import VersionsResource
 from .aliases import AliasesResource
 from .action_groups import ActionGroupsResource
 from .collaborators import CollaboratorsResource
-from .prompts import PromptsResource
 from .flows import FlowsResource
 from .sessions import SessionsResource
 from .memory import MemoryResource
@@ -250,15 +249,6 @@ class AgentResource:
         return MemoryResource(
             self._id,
             config_runtime=self.config_runtime,
-            policies=self.policies,
-        )
-
-    @property
-    def prompts(self) -> PromptsResource:
-        """Get the prompts resource for this agent."""
-        return PromptsResource(
-            self._id,
-            config_agent=self.config_agent,
             policies=self.policies,
         )
 

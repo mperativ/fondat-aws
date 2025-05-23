@@ -1,6 +1,6 @@
 """Tests for bedrock prompts functionality."""
 
-from fondat.aws.bedrock.resources.agents import AgentsResource
+from fondat.aws.bedrock.resources.prompts import PromptsResource
 from fondat.pagination import Page
 
 
@@ -21,9 +21,7 @@ async def test_list_prompts(mock_clients, config):
         ],
         "nextToken": "next_token"
     }
-    page = await AgentsResource(config_agent=config, config_runtime=config)[
-        "agent-1"
-    ].prompts.get(
+    page = await PromptsResource(config_agent=config).get(
         promptIdentifier="p1",
         max_results=10,
         cursor=b"prev_token"

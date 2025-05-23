@@ -27,9 +27,6 @@ The resource graph is organised as follows:
         │   └── .get_action_group()     # GetAgentActionGroup
         ├── collaborators.*             # Collaborator management
         │   └── .get()                  # ListAgentCollaborators
-        ├── prompts.*                   # Prompt management
-        │   ├── .get()                  # ListPrompts
-        │   └── .get_prompt()           # GetPrompt
         ├── flows.*                     # Flow management
         │   ├── .get()                  # ListFlows
         │   └── [flow_id] → FlowResource
@@ -53,6 +50,10 @@ The resource graph is organised as follows:
         ├── invoke()                    # InvokeAgent (runtime)
         ├── invoke_flow()               # InvokeFlow (runtime)
         └── invoke_inline_agent()       # InvokeInlineAgent (runtime)
+
+    PromptsResource                     # /prompts
+    ├── .get()                          # ListPrompts
+    └── .get_prompt()                   # GetPrompt
 """
 
 from collections.abc import Iterable
@@ -62,8 +63,9 @@ from fondat.aws.client import Config
 from fondat.security import Policy
 
 from .resources.agents import AgentsResource
+from .resources.prompts import PromptsResource
 
-__all__ = ["agents_resource"]
+__all__ = ["agents_resource", "prompts_resource"]
 
 
 def agents_resource(
@@ -86,5 +88,26 @@ def agents_resource(
     return AgentsResource(
         config_agent=config_agent,
         config_runtime=config_runtime,
+        policies=policies,
+    )
+
+
+def prompts_resource(
+    *,
+    config_agent: Config | None = None,
+    policies: Iterable[Policy] | None = None,
+) -> PromptsResource:
+    """
+    Create and return a root PromptsResource.
+
+    Args:
+        config_agent: Optional botocore Config for prompt-listing calls
+        policies: Optional iterable of security policies to apply
+
+    Returns:
+        A PromptsResource instance
+    """
+    return PromptsResource(
+        config_agent=config_agent,
         policies=policies,
     )

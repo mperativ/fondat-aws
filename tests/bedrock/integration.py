@@ -4,7 +4,7 @@ import logging
 import sys
 from datetime import datetime
 
-from fondat.aws.bedrock import agents_resource
+from fondat.aws.bedrock import agents_resource, prompts_resource
 from fondat.aws.client import Config
 
 # Configure logging
@@ -47,6 +47,11 @@ def cfg():
 @pytest.fixture(scope="module")
 def root(cfg):
     return agents_resource(config_agent=cfg, config_runtime=cfg)
+
+
+@pytest.fixture(scope="module")
+def prompts(cfg):
+    return prompts_resource(config_agent=cfg)
 
 
 @pytest.mark.asyncio
@@ -129,12 +134,52 @@ async def test_list_flows(root):
 
 
 @pytest.mark.asyncio
-async def test_list_prompts(root):
-    page = await root.get(max_results=1)
-    agent = root[page.items[0]["agentId"]]
-    prompts = await agent.prompts.get()
-    assert isinstance(prompts.items, list)
-    logger.info(f"Successfully listed {len(prompts.items)} prompts")
+async def test_list_prompts(prompts):
+    """Test listing prompts."""
+    page = await prompts.get(max_results=20)
+    assert page.items, "No prompts returned"
+    for prompt in page.items:
+        assert "id" in prompt and prompt["id"], "id missing"
+        assert "name" in prompt and prompt["name"], "name missing"
+        assert "description" in prompt, "description missing"
+        assert "version" in prompt, "version missing"
+        assert "arn" in prompt, "arn missing"
+        assert "createdAt" in prompt, "createdAt missing"
+        assert "updatedAt" in prompt, "updatedAt missing"
+    logger.info(f"Successfully listed {len(page.items)} prompts")
+    return page.items[0]["id"]  # Return first prompt ID for get_prompt test
+
+
+@pytest.mark.asyncio
+async def test_get_prompt(prompts):
+    """Test getting a specific prompt."""
+    # First get a list of prompts to find a valid ID
+    page = await prompts.get(max_results=1)
+    assert page.items, "No prompts available for get_prompt test"
+    prompt_id = page.items[0]["id"]
+    
+    # Get the specific prompt
+    prompt = await prompts.get_prompt(promptIdentifier=prompt_id)
+    assert prompt is not None, "Prompt not found"
+    assert prompt["id"] == prompt_id, "Prompt ID mismatch"
+    assert "name" in prompt, "name missing"
+    assert "description" in prompt, "description missing"
+    assert "version" in prompt, "version missing"
+    assert "arn" in prompt, "arn missing"
+    assert "createdAt" in prompt, "createdAt missing"
+    assert "updatedAt" in prompt, "updatedAt missing"
+    assert "variants" in prompt, "variants missing"
+    assert isinstance(prompt["variants"], list), "variants should be a list"
+    
+    # Check first variant if exists
+    if prompt["variants"]:
+        variant = prompt["variants"][0]
+        assert "name" in variant, "variant name missing"
+        assert "modelId" in variant, "variant modelId missing"
+        assert "templateType" in variant, "variant templateType missing"
+        assert variant["templateType"] in ["TEXT", "CHAT"], "invalid templateType"
+    
+    logger.info(f"Successfully retrieved prompt {mask_id(prompt_id)}")
 
 
 @pytest.mark.asyncio

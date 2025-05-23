@@ -17,16 +17,14 @@ from ..pagination import decode_cursor, paginate
 class PromptsResource:
     """Resource for managing agent prompts."""
 
-    __slots__ = ("_agent_id", "config_agent", "policies")
+    __slots__ = ("config_agent", "policies")
 
     def __init__(
         self,
-        agent_id: str,
         *,
         config_agent: Config | None = None,
         policies: Iterable[Policy] | None = None,
     ):
-        self._agent_id = agent_id
         self.config_agent = config_agent
         self.policies = policies
 
