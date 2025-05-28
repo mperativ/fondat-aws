@@ -202,7 +202,7 @@ async def test_invoke_flow(root):
 
     logger.info("Invoking flow...")
     resp = await agent.flows[flow_id].invoke(
-        inputText="Test flow invocation",
+        input_content="Test flow invocation",
         flowAliasIdentifier=alias,
         nodeName="FlowInputNode",
         nodeOutputName="document",
@@ -255,7 +255,7 @@ async def test_invoke_agent(root):
         # Invoke the flow
         logger.info("Invoking flow...")
         response = await agent.flows[flow_id].invoke(
-            inputText="Please write a poem in English about 'The Name of the Rose'. Make it thoughtful and insightful.",
+            input_content="Please write a poem in English about 'The Name of the Rose'. Make it thoughtful and insightful.",
             flowAliasIdentifier=flow_alias,
             nodeName="FlowInputNode",
             nodeOutputName="document",

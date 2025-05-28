@@ -1,5 +1,6 @@
 """Resource for managing agent flows."""
 
+import json
 from collections.abc import Iterable
 from typing import Any, Mapping
 
@@ -210,7 +211,7 @@ class FlowResource:
     @operation(method="post", policies=lambda self: self.policies)
     async def invoke(
         self,
-        inputText: str,
+        input_content: str | dict,
         flowAliasIdentifier: str,
         *,
         nodeName: str = "input",
@@ -224,7 +225,9 @@ class FlowResource:
         Invoke the flow with the given input.
 
         Args:
-            inputText: The input text to process
+            input_content: The input content to process. Can be:
+                - A string for text input
+                - A dictionary for JSON input (will be converted to string)
             flowAliasIdentifier: The unique identifier of the flow alias
             nodeName: Optional name of the node to start from. Defaults to "input"
             nodeInputName: Optional name of the node input
@@ -236,13 +239,17 @@ class FlowResource:
         Returns:
             Mapping containing flow invocation results
         """
+        str_content = input_content if isinstance(input_content, str) else json.dumps(input_content)
+
         params = {
             "flowIdentifier": self._flow_id,
             "flowAliasIdentifier": flowAliasIdentifier,
             "inputs": [
                 {
                     "nodeName": nodeName,
-                    "content": {"document": inputText},
+                    "content": {
+                        "document": str_content
+                    }
                 }
             ],
             "enableTrace": enableTrace,

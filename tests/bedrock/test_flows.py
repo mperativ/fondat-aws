@@ -2,6 +2,7 @@
 
 from fondat.aws.bedrock.resources.agents import AgentsResource
 from fondat.pagination import Page
+import json
 
 
 async def test_flow_invoke_minimal_params(mock_clients, config):
@@ -12,7 +13,7 @@ async def test_flow_invoke_minimal_params(mock_clients, config):
     res = (
         await AgentsResource(config_agent=config, config_runtime=config)["agent-1"]
         .flows["flow1"]
-        .invoke(inputText="test", flowAliasIdentifier="alias1")
+        .invoke(input_content="test", flowAliasIdentifier="alias1")
     )
     assert res == {"flow": "done"}
     runtime_client.invoke_flow.assert_called_once_with(
@@ -32,7 +33,7 @@ async def test_flow_invoke_optional_params(mock_clients, config):
         await AgentsResource(config_agent=config, config_runtime=config)["agent-1"]
         .flows["flow1"]
         .invoke(
-            inputText="foo",
+            input_content="foo",
             flowAliasIdentifier="alias1",
             nodeName="start",
             nodeInputName="in",
@@ -109,4 +110,47 @@ async def test_get_flow_version(mock_clients, config):
     assert res["flowVersion"] == "fv1"
     agent_client.get_flow_version.assert_called_once_with(
         flowIdentifier="f1", flowVersion="fv1"
+    )
+
+
+async def test_flow_invoke_complex_json_input(mock_clients, config):
+    """Test flow invocation with complex JSON input containing various data types."""
+    _, runtime_client = mock_clients
+    runtime_client.invoke_flow.return_value = {"flow": "done"}
+
+    complex_input = {
+        "text": "Hello World",
+        "number": 42,
+        "float": 3.14159,
+        "boolean": True,
+        "null_value": None,
+        "array": [1, "two", False, None],
+        "nested": {
+            "key": "value",
+            "numbers": [1, 2, 3],
+            "empty": {}
+        }
+    }
+
+    res = (
+        await AgentsResource(config_agent=config, config_runtime=config)["agent-1"]
+        .flows["flow1"]
+        .invoke(
+            input_content=complex_input,
+            flowAliasIdentifier="alias1",
+            nodeName="complex_input",
+            enableTrace=True
+        )
+    )
+    assert res == {"flow": "done"}
+    runtime_client.invoke_flow.assert_called_once_with(
+        flowIdentifier="flow1",
+        flowAliasIdentifier="alias1",
+        inputs=[{
+            "nodeName": "complex_input",
+            "content": {
+                "document": json.dumps(complex_input)
+            }
+        }],
+        enableTrace=True
     )

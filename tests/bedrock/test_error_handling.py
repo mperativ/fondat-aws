@@ -123,7 +123,7 @@ async def test_invoke_flow_error(mock_clients, config):
     with pytest.raises(botocore.exceptions.ClientError):
         await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].flows[
             "flow1"
-        ].invoke(inputText="test", flowAliasIdentifier="alias1")
+        ].invoke(input_content="test", flowAliasIdentifier="alias1")
 
 
 async def test_memory_operations_error(mock_clients, config):

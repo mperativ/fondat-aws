@@ -11,7 +11,7 @@ async def test_flow_invoke_minimal_params(mock_clients, config):
     res = (
         await AgentsResource(config_agent=config, config_runtime=config)["agent-1"]
         .flows["flow1"]
-        .invoke(inputText="test", flowAliasIdentifier="alias1")
+        .invoke(input_content="test", flowAliasIdentifier="alias1")
     )
     assert res == {"flow": "done"}
     runtime_client.invoke_flow.assert_called_once_with(
@@ -31,7 +31,7 @@ async def test_flow_invoke_optional_params(mock_clients, config):
         await AgentsResource(config_agent=config, config_runtime=config)["agent-1"]
         .flows["flow1"]
         .invoke(
-            inputText="foo",
+            input_content="foo",
             flowAliasIdentifier="alias1",
             nodeName="start",
             nodeInputName="in",
