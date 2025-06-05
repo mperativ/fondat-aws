@@ -4,6 +4,8 @@ import logging
 import sys
 from datetime import datetime
 
+from fondat.pagination import Page
+from fondat.aws.bedrock.domain import FlowSummary
 from fondat.aws.bedrock import agents_resource, prompts_resource
 from fondat.aws.client import Config
 
@@ -59,19 +61,19 @@ async def test_list_agents(root):
     page = await root.get(max_results=20)
     assert page.items, "No agents returned"
     for agent in page.items:
-        assert "agentId" in agent and agent["agentId"], "agentId missing"
-        assert "agentName" in agent and agent["agentName"]
+        assert agent.agent_id, "agent_id missing"
+        assert agent.agent_name
     logger.info(f"Successfully listed {len(page.items)} agents")
 
 
 @pytest.mark.asyncio
 async def test_list_versions(root):
     page = await root.get(max_results=1)
-    agent_id = page.items[0]["agentId"]
+    agent_id = page.items[0].agent_id
     versions = await root[agent_id].versions.get()
     assert versions.items, "No versions returned"
     for version in versions.items:
-        assert "agentVersion" in version
+        assert version.version_id
     logger.info(
         f"Successfully listed {len(versions.items)} versions for agent {mask_id(agent_id)}"
     )
@@ -80,45 +82,46 @@ async def test_list_versions(root):
 @pytest.mark.asyncio
 async def test_session_lifecycle(root):
     page = await root.get(max_results=1)
-    agent = root[page.items[0]["agentId"]]
+    agent = root[page.items[0].agent_id]
     # create
     logger.info("Creating new session...")
     session = await agent.sessions.create()
-    session_id = session["sessionId"]
-    assert session["sessionStatus"] == "ACTIVE"
+    session_id = session.session_id
+    assert session.status == "ACTIVE"
     logger.info(f"Session {mask_id(session_id)} created successfully")
 
     # list
     logger.info("Listing session invocations...")
-    inv = await agent.sessions.invocations.list(session_id)
+    session_resource = agent.sessions[session_id]
+    inv = await session_resource.invocations.get()
     assert isinstance(inv.items, list)
     logger.info(f"Found {len(inv.items)} invocations")
 
     # end then delete
     logger.info("Ending session...")
-    await agent.sessions.end(session_id)
+    await session_resource.end()
     logger.info("Session ended successfully")
 
     logger.info("Deleting session...")
-    await agent.sessions.delete(session_id)
+    await session_resource.delete()
     logger.info("Session deleted successfully")
 
 
 @pytest.mark.asyncio
 async def test_list_aliases(root):
     page = await root.get(max_results=1)
-    agent = root[page.items[0]["agentId"]]
+    agent = root[page.items[0].agent_id]
     aliases = await agent.aliases.get()
     assert isinstance(aliases.items, list)
     # record alias id for later tests
-    pytest.alias_id = aliases.items[0]["agentAliasId"] if aliases.items else None
+    pytest.alias_id = aliases.items[0].alias_id if aliases.items else None
     logger.info(f"Successfully listed {len(aliases.items)} aliases")
 
 
 @pytest.mark.asyncio
 async def test_list_action_groups(root):
     page = await root.get(max_results=1)
-    agent = root[page.items[0]["agentId"]]
+    agent = root[page.items[0].agent_id]
     groups = await agent.action_groups.get(agentVersion="DRAFT")
     assert isinstance(groups.items, list)
     logger.info(f"Successfully listed {len(groups.items)} action groups")
@@ -126,10 +129,28 @@ async def test_list_action_groups(root):
 
 @pytest.mark.asyncio
 async def test_list_flows(root):
+    """Test listing flows."""
+    # Get first available agent
     page = await root.get(max_results=1)
-    agent = root[page.items[0]["agentId"]]
-    flows = await agent.flows.get()
-    assert isinstance(flows.items, list)
+    assert page.items, "No agents available"
+    agent = root[page.items[0].agent_id]
+
+    # Get flows
+    flows = await agent.flows.get(max_results=10)
+    assert isinstance(flows, Page)
+    
+    # Debug logging
+    logger.info("Flow items types:")
+    for flow in flows.items:
+        logger.info(f"Type: {type(flow)}, Content: {flow}")
+    
+    assert all(isinstance(flow, FlowSummary) for flow in flows.items)
+    
+    # Log available flows and their statuses
+    logger.info("Available flows:")
+    for f in flows.items:
+        logger.info(f"Flow {mask_id(f.flow_id)}: status={f.status}")
+    
     logger.info(f"Successfully listed {len(flows.items)} flows")
 
 
@@ -139,15 +160,12 @@ async def test_list_prompts(prompts):
     page = await prompts.get(max_results=20)
     assert page.items, "No prompts returned"
     for prompt in page.items:
-        assert "id" in prompt and prompt["id"], "id missing"
-        assert "name" in prompt and prompt["name"], "name missing"
-        assert "description" in prompt, "description missing"
-        assert "version" in prompt, "version missing"
-        assert "arn" in prompt, "arn missing"
-        assert "createdAt" in prompt, "createdAt missing"
-        assert "updatedAt" in prompt, "updatedAt missing"
+        assert prompt.prompt_id, "prompt_id missing"
+        assert prompt.prompt_name, "prompt_name missing"
+        assert prompt.description is not None, "description missing"
+        assert prompt.created_at is not None, "created_at missing"
     logger.info(f"Successfully listed {len(page.items)} prompts")
-    return page.items[0]["id"]  # Return first prompt ID for get_prompt test
+    return page.items[0].prompt_id  # Return first prompt ID for get_prompt test
 
 
 @pytest.mark.asyncio
@@ -156,106 +174,136 @@ async def test_get_prompt(prompts):
     # First get a list of prompts to find a valid ID
     page = await prompts.get(max_results=1)
     assert page.items, "No prompts available for get_prompt test"
-    prompt_id = page.items[0]["id"]
+    prompt_id = page.items[0].prompt_id
     
     # Get the specific prompt
-    prompt = await prompts.get_prompt(promptIdentifier=prompt_id)
+    prompt = await prompts[prompt_id].get()
     assert prompt is not None, "Prompt not found"
-    assert prompt["id"] == prompt_id, "Prompt ID mismatch"
-    assert "name" in prompt, "name missing"
-    assert "description" in prompt, "description missing"
-    assert "version" in prompt, "version missing"
-    assert "arn" in prompt, "arn missing"
-    assert "createdAt" in prompt, "createdAt missing"
-    assert "updatedAt" in prompt, "updatedAt missing"
-    assert "variants" in prompt, "variants missing"
-    assert isinstance(prompt["variants"], list), "variants should be a list"
-    
-    # Check first variant if exists
-    if prompt["variants"]:
-        variant = prompt["variants"][0]
-        assert "name" in variant, "variant name missing"
-        assert "modelId" in variant, "variant modelId missing"
-        assert "templateType" in variant, "variant templateType missing"
-        assert variant["templateType"] in ["TEXT", "CHAT"], "invalid templateType"
+    assert prompt.prompt_id == prompt_id, "Prompt ID mismatch"
+    assert prompt.prompt_name is not None, "prompt_name missing"
+    assert prompt.description is not None, "description missing"
+    assert prompt.created_at is not None, "created_at missing"
+    assert prompt.updated_at is not None, "updated_at missing"
     
     logger.info(f"Successfully retrieved prompt {mask_id(prompt_id)}")
 
 
 @pytest.mark.asyncio
 async def test_invoke_flow(root):
+    """Test invoking a flow with basic input."""
+    # Get first available agent
     page = await root.get(max_results=1)
-    agent = root[page.items[0]["agentId"]]
-    flows = await agent.flows.get()
-    assert flows.items, "No flows"
-    flow = next((f for f in flows.items if f["status"] == "Prepared"), None)
-    if not flow:
-        pytest.skip("No prepared flow to invoke")
-    flow_id = flow["id"]
-    logger.info(f"Found prepared flow: {mask_id(flow_id)}")
+    assert page.items, "No agents available"
+    agent = root[page.items[0].agent_id]
 
-    # use alias id recorded earlier if any
-    alias = getattr(pytest, "alias_id", None)
-    if not alias:
-        pytest.skip("No agent alias available to invoke flow")
-    logger.info(f"Using alias: {mask_id(alias)}")
-
-    logger.info("Invoking flow...")
-    resp = await agent.flows[flow_id].invoke(
-        input_content="Test flow invocation",
-        flowAliasIdentifier=alias,
-        nodeName="FlowInputNode",
-        nodeOutputName="document",
-    )
-
-    # stream resp
-    text = ""
-    try:
-        async for event in resp["responseStream"]:
-            if "flowOutputEvent" in event:
-                text = event["flowOutputEvent"]["content"]["document"]
-    except RuntimeError:
-        pass
-    assert text, "Flow did not return document"
-    logger.info("Flow invocation completed successfully")
-
-
-@pytest.mark.asyncio
-async def test_invoke_agent(root):
-    page = await root.get(max_results=1)
-    agent = root[page.items[0]["agentId"]]
-
-    # Get flows to find the poetry flow
-    logger.info("Getting flows...")
-    flows = await agent.flows.get()
+    # Get flows
+    flows = await agent.flows.get(max_results=10)
     assert flows.items, "No flows available"
-
-    # Find the poetry flow
-    flow = next((f for f in flows.items if f["status"] == "Prepared"), None)
+    
+    # Log available flows and their statuses
+    logger.info("Available flows:")
+    for f in flows.items:
+        logger.info(f"Flow {mask_id(f.flow_id)}: status={f.status}")
+    
+    # Find a flow that can be invoked (either Prepared or Active)
+    flow = next((f for f in flows.items if f.status in ["Prepared", "Active"]), None)
     if not flow:
-        pytest.skip("No prepared flow available")
-    flow_id = flow["id"]
-    logger.info(f"Found prepared flow: {mask_id(flow_id)}")
+        pytest.skip("No prepared or active flow to invoke")
+    flow_id = flow.flow_id
+    logger.info(f"Found flow: {mask_id(flow_id)} with status: {flow.status}")
 
-    # Get agent alias
-    logger.info("Getting agent aliases...")
+    # Get flow alias
     aliases = await agent.aliases.get()
     assert aliases.items, "No aliases available"
-    flow_alias = aliases.items[0]["agentAliasId"]
+    flow_alias = aliases.items[0].alias_id
     logger.info(f"Using alias: {mask_id(flow_alias)}")
 
     # Create a new session
     logger.info("Creating new session...")
     session = await agent.sessions.create()
-    session_id = session["sessionId"]
-    assert session["sessionStatus"] == "ACTIVE", "Session should be active after creation"
+    session_id = session.session_id
+    assert session.status == "ACTIVE", "Session should be active after creation"
     logger.info(f"Session {mask_id(session_id)} created successfully")
 
     try:
         # Invoke the flow
         logger.info("Invoking flow...")
         response = await agent.flows[flow_id].invoke(
-            input_content="Please write a poem in English about 'The Name of the Rose'. Make it thoughtful and insightful.",
+            input_content={"message": "Write a poem in English about 'The Name of the Rose'. Make it thoughtful and insightful."},
+            flowAliasIdentifier=flow_alias,
+            nodeName="FlowInputNode",
+            nodeOutputName="document",
+        )
+
+        # Process the response stream
+        text = ""
+        try:
+            async for event in response["responseStream"]:
+                if "flowOutputEvent" in event:
+                    text = event["flowOutputEvent"]["content"]["document"]
+        except RuntimeError:
+            pass
+        assert text, "Flow did not return document"
+        logger.info("Flow invocation completed successfully")
+
+    finally:
+        # Clean up session
+        logger.info("Ending session...")
+        session_resource = agent.sessions[session_id]
+        await session_resource.end()
+        logger.info("Session ended successfully")
+
+        logger.info("Deleting session...")
+        await session_resource.delete()
+        logger.info("Session deleted successfully")
+
+
+@pytest.mark.asyncio
+async def test_invoke_agent(root):
+    """Test invoking an agent with a poetry request."""
+    # Get first available agent
+    page = await root.get(max_results=1)
+    assert page.items, "No agents available"
+    agent = root[page.items[0].agent_id]
+
+    # Get flows
+    logger.info("Getting flows...")
+    flows = await agent.flows.get(max_results=10)
+    assert flows.items, "No flows available"
+    
+    # Log available flows and their statuses
+    logger.info("Available flows:")
+    for f in flows.items:
+        logger.info(f"Flow {mask_id(f.flow_id)}: status={f.status}")
+    
+    # Find a flow that can be invoked (either Prepared or Active)
+    flow = next((f for f in flows.items if f.status in ["Prepared", "Active"]), None)
+    if not flow:
+        pytest.skip("No prepared or active flow available")
+    flow_id = flow.flow_id
+    logger.info(f"Found flow: {mask_id(flow_id)} with status: {flow.status}")
+
+    # Get flow alias
+    aliases = await agent.aliases.get()
+    assert aliases.items, "No aliases available"
+    flow_alias = aliases.items[0].alias_id
+    logger.info(f"Using alias: {mask_id(flow_alias)}")
+
+    # Create a new session
+    logger.info("Creating new session...")
+    session = await agent.sessions.create()
+    session_id = session.session_id
+    assert session.status == "ACTIVE", "Session should be active after creation"
+    logger.info(f"Session {mask_id(session_id)} created successfully")
+
+    # Get session resource before try block
+    session_resource = agent.sessions[session_id]
+
+    try:
+        # Invoke the flow with poetry request
+        logger.info("Invoking flow...")
+        response = await agent.flows[flow_id].invoke(
+            input_content={"message": "Please write a poem in English about 'The Name of the Rose'. Make it thoughtful and insightful."},
             flowAliasIdentifier=flow_alias,
             nodeName="FlowInputNode",
             nodeOutputName="document",
@@ -270,7 +318,7 @@ async def test_invoke_agent(root):
                         # Text chunk
                         text += event["completion"]
                     elif "flowOutputEvent" in event:
-                        # Final output event (contains the whole document)
+                        # Final output event
                         if (
                             "content" in event["flowOutputEvent"]
                             and "document" in event["flowOutputEvent"]["content"]
@@ -289,21 +337,21 @@ async def test_invoke_agent(root):
 
         # Verify session is still active
         logger.info("Verifying session state...")
-        invocations = await agent.sessions.invocations.list(session_id)
+        invocations = await session_resource.invocations.get()
         assert isinstance(invocations.items, list), "Should be able to list session invocations"
         logger.info(f"Found {len(invocations.items)} invocations")
 
     finally:
-        # End and delete the session
+        # Clean up session
         logger.info("Ending session...")
-        await agent.sessions.end(session_id)
+        await session_resource.end()
         logger.info("Session ended successfully")
 
         logger.info("Deleting session...")
-        await agent.sessions.delete(session_id)
+        await session_resource.delete()
         logger.info("Session deleted successfully")
 
-        # Verify session is deleted by attempting to list invocations (should fail)
+        # Verify session is deleted
         with pytest.raises(Exception):
-            await agent.sessions.invocations.list(session_id)
+            await session_resource.invocations.get()
         logger.info("Verified session is deleted")

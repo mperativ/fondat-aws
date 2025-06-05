@@ -26,16 +26,6 @@ async def test_parameter_type_validation(mock_clients, config):
             sessionMetadata="invalid"  # Should be dict
         )
 
-    with pytest.raises(fondat.error.BadRequestError):
-        await AgentsResource(config_agent=config, config_runtime=config)[
-            "agent-1"
-        ].invoke_inline_agent(
-            inputText="test",
-            instruction=123,  # Should be string
-            foundationModel="model",
-            sessionId="s1",
-        )
-
 
 async def test_parameter_range_validation(mock_clients, config):
     """Test validation of parameter ranges and invalid values."""
@@ -56,14 +46,20 @@ async def test_session_parameter_validation(mock_clients, config):
     _, runtime_client = mock_clients
 
     # Test with empty session ID: no validation error, should call the client
-    await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions.get("")
+    await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions[""].get()
     runtime_client.get_session.assert_called_once_with(sessionIdentifier="")
 
     # Test with invalid metadata: passed directly to client
+    runtime_client.create_session.return_value = {
+        "sessionId": "sid",
+        "agentId": "agent-1",
+        "createdAt": "2024-01-01T00:00:00Z",
+        "status": "ACTIVE"
+    }
     await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions.create(
         sessionMetadata={"": "value"}
     )
-    runtime_client.create_session.assert_any_call(sessionMetadata={"": "value"})
+    runtime_client.create_session.assert_called_once_with(sessionMetadata={"": "value"})
 
     # Test with invalid tags: passed directly to client
     await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions.create(

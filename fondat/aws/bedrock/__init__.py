@@ -13,51 +13,63 @@ The resource graph is organised as follows:
     ├── .get()                          # ListAgents
     └── [agent_id] → AgentResource      # /agents/{agent_id}
         ├── .get()                      # GetAgent
-        ├── .prepare()                  # PrepareAgent
-        ├── .get_version()              # GetAgentVersion
-        ├── .list_versions()            # ListAgentVersions
+        ├── .invoke()                   # InvokeAgent (runtime)
         ├── versions.*                  # Version management
         │   ├── .get()                  # ListAgentVersions
-        │   └── .get_version()          # GetAgentVersion
+        │   └── [version_id] → VersionResource
+        │       └── .get()              # GetAgentVersion
         ├── aliases.*                   # Alias management
         │   ├── .get()                  # ListAgentAliases
-        │   └── .get_alias()            # GetAgentAlias
+        │   └── [alias_id] → AliasResource
+        │       └── .get()              # GetAgentAlias
         ├── action_groups.*             # Action group management
         │   ├── .get()                  # ListAgentActionGroups
-        │   └── .get_action_group()     # GetAgentActionGroup
+        │   └── [action_group_id] → ActionGroupResource
+        │       └── .get()              # GetAgentActionGroup
         ├── collaborators.*             # Collaborator management
-        │   └── .get()                  # ListAgentCollaborators
+        │   ├── .get()                  # ListAgentCollaborators
+        │   └── [collaborator_id] → CollaboratorResource
+        │       └── .get()              # GetAgentCollaborator
         ├── flows.*                     # Flow management
         │   ├── .get()                  # ListFlows
         │   └── [flow_id] → FlowResource
         │       ├── .get()              # GetFlow
-        │       ├── .get_alias()        # GetFlowAlias
-        │       ├── .get_version()      # GetFlowVersion
-        │       ├── .list_aliases()     # ListFlowAliases
-        │       └── .list_versions()    # ListFlowVersions
+        │       ├── .invoke()           # InvokeFlow (runtime)
+        │       ├── versions.*          # Flow version management
+        │       │   ├── .get()          # ListFlowVersions
+        │       │   └── [version_id] → VersionResource
+        │       │       └── .get()      # GetFlowVersion
+        │       └── aliases.*           # Flow alias management
+        │           ├── .get()          # ListFlowAliases
+        │           └── [alias_id] → AliasResource
+        │               └── .get()      # GetFlowAlias
         ├── memory.*                    # Memory management
-        │   ├── .get()                  # GetAgentMemory
-        │   └── .delete()               # DeleteAgentMemory
-        ├── sessions.*                  # Session management
-        │   ├── .create()               # CreateSession
-        │   ├── .get()                  # GetSession
-        │   ├── .delete()               # DeleteSession
-        │   ├── .end()                  # EndSession
-        │   ├── .update()               # UpdateSession
-        │   └── invocations.*           # Invocation management
-        │       ├── .create()           # CreateInvocation
-        │       └── .put_step()         # PutInvocationStep
-        ├── invoke()                    # InvokeAgent (runtime)
-        ├── invoke_flow()               # InvokeFlow (runtime)
-        └── invoke_inline_agent()       # InvokeInlineAgent (runtime)
+        │   ├── .get()                  # ListAgentMemory
+        │   └── [memory_id] → MemorySessionResource
+        │       └── .delete()           # DeleteAgentMemory
+        └── sessions.*                  # Session management
+            ├── .get()                  # ListSessions
+            ├── .create()               # CreateSession
+            └── [session_id] → SessionResource
+                ├── .get()              # GetSession
+                ├── .delete()           # DeleteSession
+                ├── .end()              # EndSession
+                ├── .update()           # UpdateSession
+                └── invocations.*       # Invocation management
+                    ├── .get()          # ListInvocations
+                    └── [invocation_id] → InvocationResource
+                        ├── .create()   # CreateInvocation
+                        ├── .get_step() # GetInvocationStep
+                        ├── .get_steps()# ListInvocationSteps
+                        └── .put_step() # PutInvocationStep
 
     PromptsResource                     # /prompts
     ├── .get()                          # ListPrompts
-    └── .get_prompt()                   # GetPrompt
+    └── [prompt_id] → PromptResource    # /prompts/{prompt_id}
+        └── .get()                      # GetPrompt
 """
 
 from collections.abc import Iterable
-from typing import Any
 
 from fondat.aws.client import Config
 from fondat.security import Policy
@@ -73,7 +85,9 @@ def agents_resource(
     config_agent: Config | None = None,
     config_runtime: Config | None = None,
     policies: Iterable[Policy] | None = None,
-) -> Any:
+    cache_size: int = 100,
+    cache_expire: int | float = 300,  # 5 minutes default
+) -> AgentsResource:
     """
     Create and return the root AgentsResource bound to the supplied policies and botocore configs.
 
@@ -81,6 +95,8 @@ def agents_resource(
         config_agent: Optional configuration for the Bedrock Agent control-plane client
         config_runtime: Optional configuration for the Bedrock Agent runtime client
         policies: Optional iterable of security policies to apply to each operation
+        cache_size: Maximum number of items to cache
+        cache_expire: Cache expiration time in seconds
 
     Returns:
         The root AgentsResource
@@ -89,6 +105,8 @@ def agents_resource(
         config_agent=config_agent,
         config_runtime=config_runtime,
         policies=policies,
+        cache_size=cache_size,
+        cache_expire=cache_expire,
     )
 
 
@@ -96,6 +114,8 @@ def prompts_resource(
     *,
     config_agent: Config | None = None,
     policies: Iterable[Policy] | None = None,
+    cache_size: int = 100,
+    cache_expire: int | float = 300,  # 5 minutes default
 ) -> PromptsResource:
     """
     Create and return a root PromptsResource.
@@ -103,6 +123,8 @@ def prompts_resource(
     Args:
         config_agent: Optional botocore Config for prompt-listing calls
         policies: Optional iterable of security policies to apply
+        cache_size: Maximum number of items to cache
+        cache_expire: Cache expiration time in seconds
 
     Returns:
         A PromptsResource instance
@@ -110,4 +132,6 @@ def prompts_resource(
     return PromptsResource(
         config_agent=config_agent,
         policies=policies,
+        cache_size=cache_size,
+        cache_expire=cache_expire,
     )

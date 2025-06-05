@@ -16,18 +16,6 @@ async def test_invoke_agent(mock_clients, config):
     )
 
 
-async def test_invoke_inline_agent(mock_clients, config):
-    """Test invoking an inline agent with custom instruction and model."""
-    _, runtime_client = mock_clients
-    runtime_client.invoke_inline_agent.return_value = {"inline": True}
-    res = await AgentsResource(config_agent=config, config_runtime=config)[
-        "agent-1"
-    ].invoke_inline_agent(inputText="x", instruction="i", foundationModel="m", sessionId="s")
-    assert res["inline"] is True
-    runtime_client.invoke_inline_agent.assert_called_once_with(
-        agentId="agent-1", inputText="x", instruction="i", foundationModel="m", sessionId="s"
-    )
-
 
 async def test_invoke_agent_edge_cases(mock_clients, config):
     """Test agent invocation with various input edge cases."""

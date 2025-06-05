@@ -137,8 +137,7 @@ async def test_memory_operations_error(mock_clients, config):
         operation_name="GetAgentMemory",
     )
     with pytest.raises(botocore.exceptions.ClientError):
-        await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].memory.get(
-            memoryId="mid",
+        await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].memory["mid"].get(
             agentAliasId="alias-1",
             memoryType="SESSION_SUMMARY"
         )

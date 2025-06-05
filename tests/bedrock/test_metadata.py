@@ -12,11 +12,8 @@ def test_operation_decorator_metadata():
     """Test operation decorator metadata on resource methods."""
     # Check if methods are decorated with operation
     assert hasattr(AgentsResource.get, "__name__")
-    assert hasattr(AgentResource.prepare, "__name__")
-
     # Check method names - they should be 'wrapper' after decoration
     assert AgentsResource.get.__name__ == "wrapper"
-    assert AgentResource.prepare.__name__ == "wrapper"
 
 
 async def test_runtime_client_context_manager(monkeypatch):

@@ -3,6 +3,7 @@
 from fondat.aws.bedrock.resources.agents import AgentsResource
 from fondat.pagination import Page
 import json
+from fondat.aws.bedrock.resources.generic_resources import GenericVersionResource
 
 
 async def test_flow_invoke_minimal_params(mock_clients, config):
@@ -65,7 +66,13 @@ async def test_list_flows(mock_clients, config):
     """Test listing flows with pagination support."""
     agent_client, _ = mock_clients
     agent_client.list_flows.return_value = {
-        "flowSummaries": [{"flowIdentifier": "f1"}],
+        "flowSummaries": [{
+            "id": "f1",
+            "name": "Test Flow",
+            "status": "ACTIVE",
+            "createdAt": "2024-03-20T00:00:00Z",
+            "description": "Test flow description"
+        }],
         "nextToken": "t",
     }
     page = await AgentsResource(config_agent=config, config_runtime=config)[
@@ -81,33 +88,63 @@ async def test_get_flow(mock_clients, config):
     agent_client.get_flow.return_value = {"flowIdentifier": "f1"}
     res = await AgentsResource(config_agent=config, config_runtime=config)[
         "agent-1"
-    ].flows.get_flow("f1")
+    ].flows["f1"].get()
     assert res["flowIdentifier"] == "f1"
     agent_client.get_flow.assert_called_once_with(flowIdentifier="f1")
 
 
-async def test_list_flow_versions(mock_clients, config):
-    """Test listing flow versions with pagination."""
+async def test_list_flow_versions_with_generic(mock_clients, config):
+    """Test listing flow versions using the generic class."""
     agent_client, _ = mock_clients
     agent_client.list_flow_versions.return_value = {
-        "flowVersionSummaries": [{"flowVersion": "fv1"}],
-        "nextToken": None,
+        "flowVersionSummaries": [{
+            "flowVersion": "fv1",
+            "versionName": "Flow Version 1",
+            "createdAt": "2024-03-20T10:00:00Z"
+        }],
+        "nextToken": "t",
     }
-    page = await AgentsResource(config_agent=config, config_runtime=config)[
-        "agent-1"
-    ].flows.list_flow_versions("f1", max_results=1)
+
+    # Create a GenericVersionResource instance for flows
+    versions = GenericVersionResource(
+        "f1",  # flow identifier
+        id_field="flowIdentifier",
+        list_method="list_flow_versions",
+        get_method="get_flow_version",
+        items_key="flowVersionSummaries",
+        config=config
+    )
+
+    page = await versions.get(max_results=1)
     assert isinstance(page, Page)
-    agent_client.list_flow_versions.assert_called_once_with(flowIdentifier="f1", maxResults=1)
+    assert len(page.items) == 1
+    assert page.items[0].version_id == "fv1"
+    agent_client.list_flow_versions.assert_called_once_with(
+        flowIdentifier="f1", maxResults=1
+    )
 
 
-async def test_get_flow_version(mock_clients, config):
-    """Test retrieving a specific flow version by ID."""
+async def test_get_flow_version_with_generic(mock_clients, config):
+    """Test retrieving a specific flow version using the generic class."""
     agent_client, _ = mock_clients
-    agent_client.get_flow_version.return_value = {"flowVersion": "fv1"}
-    res = await AgentsResource(config_agent=config, config_runtime=config)[
-        "agent-1"
-    ].flows.get_flow_version("f1", "fv1")
-    assert res["flowVersion"] == "fv1"
+    agent_client.get_flow_version.return_value = {
+        "flowVersion": "fv1",
+        "versionName": "Flow Version 1",
+        "createdAt": "2024-03-20T10:00:00Z"
+    }
+
+    # Create a GenericVersionResource instance for flows
+    versions = GenericVersionResource(
+        "f1",  # flow identifier
+        id_field="flowIdentifier",
+        list_method="list_flow_versions",
+        get_method="get_flow_version",
+        items_key="flowVersionSummaries",
+        config=config
+    )
+
+    result = await versions["fv1"].get()
+    assert result["flowVersion"] == "fv1"
     agent_client.get_flow_version.assert_called_once_with(
         flowIdentifier="f1", flowVersion="fv1"
     )

@@ -26,7 +26,13 @@ async def test_list_agents(mock_clients, config):
     """Test listing agents with pagination support."""
     agent_client, _ = mock_clients
     agent_client.list_agents.return_value = {
-        "agentSummaries": [{"agentId": "agent-1", "agentName": "Agent 1"}],
+        "agentSummaries": [{
+            "agentId": "agent-1",
+            "agentName": "Agent 1",
+            "status": "PREPARED",
+            "lastUpdatedAt": "2024-03-20T10:00:00Z",
+            "preparedAt": "2024-03-20T10:00:00Z"
+        }],
         "nextToken": "token",
     }
 
@@ -44,12 +50,3 @@ async def test_get_agent(mock_clients, config):
     res = await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].get()
     assert res["agentId"] == "agent-1"
     agent_client.get_agent.assert_called_once_with(agentId="agent-1")
-
-
-async def test_prepare_agent(mock_clients, config):
-    """Test agent preparation process."""
-    agent_client, _ = mock_clients
-    agent_client.prepare_agent.return_value = {"status": "PREPARING"}
-    res = await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].prepare()
-    assert res["status"] == "PREPARING"
-    agent_client.prepare_agent.assert_called_once_with(agentId="agent-1")

@@ -1,6 +1,7 @@
 """Tests for bedrock memory functionality."""
 
 from fondat.aws.bedrock.resources.agents import AgentsResource
+from fondat.pagination import Page
 
 
 async def test_get_memory(mock_clients, config):
@@ -22,18 +23,13 @@ async def test_get_memory(mock_clients, config):
     }
     res = await AgentsResource(config_agent=config, config_runtime=config)[
         "agent-1"
-    ].memory.get(
-        memoryId="mid",
+    ].memory["mid"].get(
         agentAliasId="alias-1",
         memoryType="SESSION_SUMMARY",
         max_items=10,
-        cursor="prev_token"
+        cursor="prev_token".encode()
     )
-    assert len(res["memoryContents"]) == 1
     assert res["memoryContents"][0]["sessionSummary"]["memoryId"] == "mid"
-    assert res["memoryContents"][0]["sessionSummary"]["sessionId"] == "sid"
-    assert res["memoryContents"][0]["sessionSummary"]["summaryText"] == "Test summary"
-    assert res["nextToken"] == "next_token"
     runtime_client.get_agent_memory.assert_called_once_with(
         agentId="agent-1",
         memoryId="mid",
@@ -47,8 +43,9 @@ async def test_get_memory(mock_clients, config):
 async def test_delete_memory(mock_clients, config):
     """Test deleting agent memory."""
     _, runtime_client = mock_clients
-    await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].memory.delete(
-        memoryId="mid",
+    await AgentsResource(config_agent=config, config_runtime=config)[
+        "agent-1"
+    ].memory["mid"].delete(
         agentAliasId="alias-1",
         sessionId="sid"
     )

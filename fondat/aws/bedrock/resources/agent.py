@@ -1,8 +1,9 @@
 """Resource for managing a specific Bedrock agent."""
 
 from collections.abc import Iterable
-from typing import Any, Mapping
 
+from fondat.aws.bedrock.domain import Agent, Invocation
+from fondat.aws.bedrock.resources.aliases import AliasesResource
 from fondat.aws.client import Config, wrap_client_error
 from fondat.resource import resource
 from fondat.security import Policy
@@ -11,7 +12,7 @@ from ..clients import agent_client, runtime_client
 from ..decorators import operation
 
 from .versions import VersionsResource
-from .aliases import AliasesResource
+from .generic_resources import GenericAliasResource
 from .action_groups import ActionGroupsResource
 from .collaborators import CollaboratorsResource
 from .flows import FlowsResource
@@ -23,7 +24,7 @@ from .memory import MemoryResource
 class AgentResource:
     """
     Resource for managing a specific Bedrock agent.
-    Provides access to agent metadata, versions, aliases, action groups, and runtime operations.
+    Now delegates versions and aliases to functions that return generic instances.
     """
 
     __slots__ = ("_id", "config_agent", "config_runtime", "policies")
@@ -42,7 +43,7 @@ class AgentResource:
         self.policies = policies
 
     @operation(method="get", policies=lambda self: self.policies)
-    async def get(self) -> Mapping[str, Any]:
+    async def get(self) -> Agent:
         """
         Retrieve detailed information about the agent.
 
@@ -53,23 +54,12 @@ class AgentResource:
             with wrap_client_error():
                 return await client.get_agent(agentId=self._id)
 
-    @operation(method="post", policies=lambda self: self.policies)
-    async def prepare(self) -> Mapping[str, Any]:
-        """
-        Prepare the agent for use.
-
-        Returns:
-            Mapping containing preparation details
-        """
-        async with agent_client(self.config_agent) as client:
-            with wrap_client_error():
-                return await client.prepare_agent(agentId=self._id)
 
     @operation(method="post", policies=lambda self: self.policies)
     async def invoke(
         self,
         inputText: str,
-        sessionId: str,
+        sessionId: str | None,
         agentAliasId: str,
         *,
         enableTrace: bool = False,
@@ -79,13 +69,13 @@ class AgentResource:
         sessionState: dict | None = None,
         sourceArn: str | None = None,
         streamingConfigurations: dict | None = None,
-    ) -> Mapping[str, Any]:
+    ) -> Invocation:
         """
         Invoke the agent with the given input.
 
         Args:
             inputText: Input text to process
-            sessionId: Session identifier
+            sessionId: Session identifier. If None, a new session will be created
             agentAliasId: Agent alias identifier
             enableTrace: Enable trace information
             endSession: End session after invocation
@@ -98,6 +88,10 @@ class AgentResource:
         Returns:
             Mapping containing agent invocation results
         """
+        if sessionId is None:
+            session = await self.sessions.create()
+            sessionId = session["sessionId"]
+
         params = {
             "agentId": self._id,
             "inputText": inputText,
@@ -122,106 +116,41 @@ class AgentResource:
             with wrap_client_error():
                 return await client.invoke_agent(**params)
 
-    @operation(method="post", policies=lambda self: self.policies)
-    async def invoke_inline_agent(
-        self,
-        *,
-        foundationModel: str,
-        instruction: str,
-        sessionId: str,
-        inputText: str,
-        actionGroups: list[dict] | None = None,
-        agentCollaboration: str | None = None,
-        agentName: str | None = None,
-        bedrockModelConfigurations: dict | None = None,
-        collaboratorConfigurations: list[dict] | None = None,
-        collaborators: list[dict] | None = None,
-        customOrchestration: dict | None = None,
-        customerEncryptionKeyArn: str | None = None,
-        enableTrace: bool = False,
-        endSession: bool = False,
-        guardrailConfiguration: dict | None = None,
-        idleSessionTTLInSeconds: int | None = None,
-        inlineSessionState: dict | None = None,
-        knowledgeBases: list[dict] | None = None,
-        orchestrationType: str | None = None,
-        promptOverrideConfiguration: dict | None = None,
-        streamingConfigurations: dict | None = None,
-    ) -> Mapping[str, Any]:
-        """
-        Invoke an inline Amazon Bedrock agent.
-
-        Required:
-        foundationModel: the underlying model to orchestrate
-        instruction: what the agent should do  
-        sessionId:   unique session identifier  
-        inputText:   user input to send to the agent
-
-        Optional: you can pass any of the other inline-agent config blocks below.
-        """
-        params: dict[str, Any] = {
-            "agentId": self._id,
-            "foundationModel": foundationModel,
-            "instruction": instruction,
-            "sessionId": sessionId,
-            "inputText": inputText,
-        }
-        if actionGroups:
-            params["actionGroups"] = actionGroups
-        if agentCollaboration:
-            params["agentCollaboration"] = agentCollaboration
-        if agentName:
-            params["agentName"] = agentName
-        if bedrockModelConfigurations:
-            params["bedrockModelConfigurations"] = bedrockModelConfigurations
-        if collaboratorConfigurations:
-            params["collaboratorConfigurations"] = collaboratorConfigurations
-        if collaborators:
-            params["collaborators"] = collaborators
-        if customOrchestration:
-            params["customOrchestration"] = customOrchestration
-        if customerEncryptionKeyArn:
-            params["customerEncryptionKeyArn"] = customerEncryptionKeyArn
-        if enableTrace:
-            params["enableTrace"] = True
-        if endSession:
-            params["endSession"] = True
-        if guardrailConfiguration:
-            params["guardrailConfiguration"] = guardrailConfiguration
-        if idleSessionTTLInSeconds is not None:
-            params["idleSessionTTLInSeconds"] = idleSessionTTLInSeconds
-        if inlineSessionState:
-            params["inlineSessionState"] = inlineSessionState
-        if knowledgeBases:
-            params["knowledgeBases"] = knowledgeBases
-        if orchestrationType:
-            params["orchestrationType"] = orchestrationType
-        if promptOverrideConfiguration:
-            params["promptOverrideConfiguration"] = promptOverrideConfiguration
-        if streamingConfigurations:
-            params["streamingConfigurations"] = streamingConfigurations
-
-        async with runtime_client(self.config_runtime) as client:
-            with wrap_client_error():
-                return await client.invoke_inline_agent(**params)
-
     @property
-    def versions(self) -> VersionsResource:
-        """Get the versions resource for this agent."""
+    def versions(self):
+        """
+        Property that returns the agent versions.
+        """
         return VersionsResource(
-            self._id, config_agent=self.config_agent, policies=self.policies
+            self._id,
+            config_agent=self.config_agent,
+            policies=self.policies,
+            cache_size=100,
+            cache_expire=300,
         )
 
     @property
-    def aliases(self) -> AliasesResource:
-        """Get the aliases resource for this agent."""
-        return AliasesResource(self._id, config_agent=self.config_agent, policies=self.policies)
+    def aliases(self) -> GenericAliasResource:
+        """
+        Property that returns the agent aliases.
+        """
+        return AliasesResource(
+            self._id,
+            config_agent=self.config_agent,
+            policies=self.policies,
+            cache_size=100,
+            cache_expire=300,
+        )
 
     @property
     def action_groups(self) -> ActionGroupsResource:
         """Get the action groups resource for this agent."""
         return ActionGroupsResource(
-            self._id, config_agent=self.config_agent, policies=self.policies
+            self._id,
+            config_agent=self.config_agent,
+            policies=self.policies,
+            cache_size=100,
+            cache_expire=300,
         )
 
     @property
@@ -232,6 +161,8 @@ class AgentResource:
             config_agent=self.config_agent,
             config_runtime=self.config_runtime,
             policies=self.policies,
+            cache_size=100,
+            cache_expire=300,
         )
 
     @property
@@ -241,6 +172,8 @@ class AgentResource:
             self._id,
             config_runtime=self.config_runtime,
             policies=self.policies,
+            cache_size=100,
+            cache_expire=300,
         )
 
     @property
@@ -250,6 +183,8 @@ class AgentResource:
             self._id,
             config_runtime=self.config_runtime,
             policies=self.policies,
+            cache_size=100,
+            cache_expire=300,
         )
 
     @property
@@ -259,4 +194,6 @@ class AgentResource:
             self._id,
             config_agent=self.config_agent,
             policies=self.policies,
+            cache_size=100,
+            cache_expire=300,
         )
