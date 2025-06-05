@@ -16,17 +16,17 @@ from ..utils import parse_bedrock_datetime
 class GenericVersionResource:
     """
     Generic class to handle 'list versions' and 'get version'
-    in any resource that follows the AWS Bedrock pattern (agents or flows).
+    in any resource that follows the AWS Bedrock pattern (agents, flows, or prompts).
 
     Parameters (in __init__):
-        parent_id: identifier of the parent resource (agentId or flowIdentifier).
-        id_field: name of the field sent to the client (e.g. "agentId" or "flowIdentifier").
+        parent_id: identifier of the parent resource (agentId, flowIdentifier, or promptIdentifier).
+        id_field: name of the field sent to the client (e.g. "agentId", "flowIdentifier", or "promptIdentifier").
         list_method: name of the botocore method to list versions
-                     (e.g.: "list_agent_versions" or "list_flow_versions").
+                     (e.g.: "list_agent_versions", "list_flow_versions", or "list_prompt_versions").
         get_method: name of the botocore method to get a single version
-                     (e.g.: "get_agent_version" or "get_flow_version").
+                     (e.g.: "get_agent_version", "get_flow_version", or "get_prompt_version").
         items_key: key in the botocore response that contains the list
-                   (e.g.: "agentVersionSummaries" or "flowVersionSummaries").
+                   (e.g.: "agentVersionSummaries", "flowVersionSummaries", or "promptVersionSummaries").
         config: AWS configuration (fondat.aws.client.Config), optional.
         policies: Collection of security policies, optional.
         cache_size: Maximum number of items to cache
@@ -82,6 +82,14 @@ class GenericVersionResource:
         elif self.id_field == "flowIdentifier":
             return {
                 "id": "flowVersion",
+                "name": "versionName",
+                "created_at": "createdAt",
+                "description": "description",
+                "metadata": "metadata",
+            }
+        elif self.id_field == "promptIdentifier":
+            return {
+                "id": "promptVersion",
                 "name": "versionName",
                 "created_at": "createdAt",
                 "description": "description",
@@ -192,9 +200,12 @@ class VersionResource:
         Returns:
             Version details
         """
-        key_for_version = (
-            "agentVersion" if self.id_field == "agentId" else "flowVersion"
-        )
+        key_for_version = {
+            "agentId": "agentVersion",
+            "flowIdentifier": "flowVersion",
+            "promptIdentifier": "promptVersion",
+        }[self.id_field]
+        
         params = {self.id_field: self._parent_id, key_for_version: self._version}
         async with agent_client(self.config) as client:
             return await getattr(client, self.get_method)(**params)

@@ -13,6 +13,7 @@ from ..decorators import operation
 from ..pagination import decode_cursor, paginate
 from ..cache import BedrockCache
 from ..utils import parse_bedrock_datetime
+from .generic_resources import GenericVersionResource
 
 
 @resource
@@ -144,3 +145,23 @@ class PromptResource:
             params["promptVersion"] = promptVersion
         async with agent_client(self.config_agent) as client:
             return await client.get_prompt(**params)
+
+    @property
+    def versions(self) -> GenericVersionResource:
+        """
+        Returns a GenericVersionResource configured for prompt versions.
+        - prompt_id: parent_id (promptIdentifier)
+        - id_field: "promptIdentifier"
+        - list_method: "list_prompt_versions"
+        - get_method: "get_prompt_version"
+        - items_key: "promptVersionSummaries"
+        """
+        return GenericVersionResource(
+            parent_id=self._id,
+            id_field="promptIdentifier",
+            list_method="list_prompt_versions",
+            get_method="get_prompt_version",
+            items_key="promptVersionSummaries",
+            config=self.config_agent,
+            policies=self.policies,
+        )
