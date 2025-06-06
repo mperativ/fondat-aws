@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 
-from fondat.aws.client import Config
+from fondat.aws.client import Config, wrap_client_error
 from fondat.resource import resource
 from fondat.security import Policy
 from fondat.aws.bedrock.domain import MemorySession, MemorySessionSummary
@@ -53,7 +53,8 @@ class MemoryResource:
         if cursor is not None:
             params["nextToken"] = decode_cursor(cursor)
         async with runtime_client(self.config_runtime) as client:
-            resp = await client.list_agent_memory(**params)
+            with wrap_client_error():
+                resp = await client.list_agent_memory(**params)
         return paginate(
             resp,
             items_key="memorySessionSummaries",
@@ -63,6 +64,7 @@ class MemoryResource:
                 created_at=parse_bedrock_datetime(d["createdAt"]),
                 description=d.get("description"),
                 metadata=d.get("metadata"),
+                _factory=lambda mid=d["memoryId"], self=self: self[mid],
             ),
         )
 
@@ -162,7 +164,8 @@ class MemorySessionResource:
         if cursor is not None:
             params["nextToken"] = decode_cursor(cursor)
         async with runtime_client(self.config_runtime) as client:
-            return await client.get_agent_memory(**params)
+            with wrap_client_error():
+                return await client.get_agent_memory(**params)
 
     @operation(method="delete", policies=lambda self: self.policies)
     async def delete(
@@ -185,4 +188,5 @@ class MemorySessionResource:
         if sessionId is not None:
             params["sessionId"] = sessionId
         async with runtime_client(self.config_runtime) as client:
-            await client.delete_agent_memory(**params)
+            with wrap_client_error():
+                await client.delete_agent_memory(**params)

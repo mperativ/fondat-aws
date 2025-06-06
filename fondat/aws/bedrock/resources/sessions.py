@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from typing import Any
 from datetime import datetime
 
-from fondat.aws.client import Config
+from fondat.aws.client import Config, wrap_client_error
 from fondat.resource import resource
 from fondat.security import Policy
 from fondat.aws.bedrock.domain import (
@@ -62,7 +62,8 @@ class SessionsResource:
         if cursor is not None:
             params["nextToken"] = decode_cursor(cursor)
         async with runtime_client(self.config_runtime) as client:
-            resp = await client.list_sessions(**params)
+            with wrap_client_error():
+                resp = await client.list_sessions(**params)
         return paginate(
             resp,
             items_key="sessionSummaries",
@@ -72,6 +73,7 @@ class SessionsResource:
                 status=d["status"],
                 description=d.get("description"),
                 created_at=parse_bedrock_datetime(d["createdAt"]),
+                _factory=lambda sid=d["sessionId"], self=self: self[sid],
             ),
         )
 
@@ -131,15 +133,17 @@ class SessionsResource:
         if tags:
             params["tags"] = tags
         async with runtime_client(self.config_runtime) as client:
-            resp = await client.create_session(**params)
-            return Session(
-                session_id=resp["sessionId"],
-                agent_id=resp["agentId"],
-                created_at=parse_bedrock_datetime(resp["createdAt"]),
-                status=resp["status"],
-                description=resp.get("description"),
-                session_state=resp.get("sessionState"),
-            )
+            with wrap_client_error():
+                resp = await client.create_session(**params)
+                return Session(
+                    session_id=resp["sessionId"],
+                    session_arn=resp["sessionArn"],
+                    session_status=resp["sessionStatus"],
+                    created_at=parse_bedrock_datetime(resp["createdAt"]),
+                    last_updated_at=parse_bedrock_datetime(resp["lastUpdatedAt"]),
+                    encryption_key_arn=resp.get("encryptionKeyArn"),
+                    session_metadata=resp.get("sessionMetadata", {})
+                )
 
     def __getitem__(self, session_id: str) -> "SessionResource":
         """Get a specific session resource.
@@ -186,13 +190,15 @@ class SessionResource:
             Session details
         """
         async with runtime_client(self.config_runtime) as client:
-            return await client.get_session(sessionIdentifier=self._session_id)
+            with wrap_client_error():
+                return await client.get_session(sessionIdentifier=self._session_id)
 
     @operation(method="delete", policies=lambda self: self.policies)
     async def delete(self) -> None:
         """Delete session."""
         async with runtime_client(self.config_runtime) as client:
-            await client.delete_session(sessionIdentifier=self._session_id)
+            with wrap_client_error():
+                await client.delete_session(sessionIdentifier=self._session_id)
 
     @operation(method="post", policies=lambda self: self.policies)
     async def end(self) -> Session:
@@ -202,7 +208,8 @@ class SessionResource:
             Session end details
         """
         async with runtime_client(self.config_runtime) as client:
-            return await client.end_session(sessionIdentifier=self._session_id)
+            with wrap_client_error():
+                return await client.end_session(sessionIdentifier=self._session_id)
 
     @operation(method="patch", policies=lambda self: self.policies)
     async def update(
@@ -222,7 +229,8 @@ class SessionResource:
         if sessionMetadata is not None:
             params["sessionMetadata"] = sessionMetadata
         async with runtime_client(self.config_runtime) as client:
-            return await client.update_session(**params)
+            with wrap_client_error():
+                return await client.update_session(**params)
 
     @property
     def invocations(self) -> "InvocationsResource":
@@ -274,7 +282,8 @@ class InvocationsResource:
         if cursor is not None:
             params["nextToken"] = decode_cursor(cursor)
         async with runtime_client(self.config_runtime) as client:
-            resp = await client.list_invocations(**params)
+            with wrap_client_error():
+                resp = await client.list_invocations(**params)
         return paginate(
             resp,
             items_key="invocationSummaries",
@@ -284,8 +293,7 @@ class InvocationsResource:
                 created_at=parse_bedrock_datetime(d["createdAt"]),
                 status=d["status"],
                 input_text=d["inputText"],
-                output_text=d.get("outputText"),
-                trace=d.get("trace"),
+                _factory=lambda iid=d["invocationId"], self=self: self[iid],
             ),
         )
 
@@ -380,7 +388,8 @@ class InvocationResource:
         if description is not None:
             params["description"] = description
         async with runtime_client(self.config_runtime) as client:
-            return await client.create_invocation(**params)
+            with wrap_client_error():
+                return await client.create_invocation(**params)
 
     @operation(method="get", policies=lambda self: self.policies)
     async def get_step(
@@ -396,11 +405,12 @@ class InvocationResource:
             Step details
         """
         async with runtime_client(self.config_runtime) as client:
-            return await client.get_invocation_step(
-                sessionIdentifier=self._session_id,
-                invocationIdentifier=self._invocation_id,
-                invocationStepId=invocationStepId,
-            )
+            with wrap_client_error():
+                return await client.get_invocation_step(
+                    sessionIdentifier=self._session_id,
+                    invocationIdentifier=self._invocation_id,
+                    invocationStepId=invocationStepId,
+                )
 
     @operation(method="get", policies=lambda self: self.policies)
     async def get_steps(
@@ -427,7 +437,8 @@ class InvocationResource:
         if cursor is not None:
             params["nextToken"] = decode_cursor(cursor)
         async with runtime_client(self.config_runtime) as client:
-            resp = await client.list_invocation_steps(**params)
+            with wrap_client_error():
+                resp = await client.list_invocation_steps(**params)
         return paginate(resp, items_key="invocationStepSummaries")
 
     @operation(method="post", policies=lambda self: self.policies)
@@ -437,7 +448,7 @@ class InvocationResource:
         invocationStepTime: datetime,
         *,
         invocationStepId: str | None = None,
-    ) -> InvocationStep:
+    ) -> str:
         """Add invocation step.
 
         Args:
@@ -446,7 +457,7 @@ class InvocationResource:
             invocationStepId: Step identifier
 
         Returns:
-            Step details
+            The invocation step ID
         """
         params = {
             "sessionIdentifier": self._session_id,
@@ -457,4 +468,5 @@ class InvocationResource:
         if invocationStepId is not None:
             params["invocationStepId"] = invocationStepId
         async with runtime_client(self.config_runtime) as client:
-            return await client.put_invocation_step(**params)
+            with wrap_client_error():
+                return await client.put_invocation_step(**params)

@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 
-from fondat.aws.client import Config
+from fondat.aws.client import Config, wrap_client_error
 from fondat.aws.bedrock.domain import Prompt, PromptSummary
 from fondat.pagination import Cursor, Page
 from fondat.resource import resource
@@ -54,11 +54,11 @@ class PromptsResource:
             resp,
             items_key="promptSummaries",
             mapper=lambda d: PromptSummary(
-                prompt_id=d.get("promptId") or d["id"],
-                prompt_name=d.get("promptName") or d["name"],
+                prompt_id=d.get("promptId") or d.get("id"),
+                prompt_name=d.get("promptName") or d.get("name"),
                 description=d.get("description"),
-                metadata=d.get("metadata"),
-                created_at=parse_bedrock_datetime(d["createdAt"]),
+                created_at=parse_bedrock_datetime(d.get("createdAt") or d.get("created_at")),
+                _factory=lambda pid=d.get("promptId") or d.get("id"), self=self: self[pid],
             ),
         )
 
@@ -144,7 +144,8 @@ class PromptResource:
         if promptVersion is not None:
             params["promptVersion"] = promptVersion
         async with agent_client(self.config_agent) as client:
-            return await client.get_prompt(**params)
+            with wrap_client_error():
+                return await client.get_prompt(**params)
 
     @property
     def versions(self) -> GenericVersionResource:

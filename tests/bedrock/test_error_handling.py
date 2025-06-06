@@ -104,7 +104,7 @@ async def test_create_session_error(mock_clients, config):
         },
         operation_name="CreateSession",
     )
-    with pytest.raises(botocore.exceptions.ClientError):
+    with pytest.raises(fondat.error.ConflictError):
         await AgentsResource(config_agent=config, config_runtime=config)[
             "agent-1"
         ].sessions.create()
@@ -120,7 +120,7 @@ async def test_invoke_flow_error(mock_clients, config):
         },
         operation_name="InvokeFlow",
     )
-    with pytest.raises(botocore.exceptions.ClientError):
+    with pytest.raises(fondat.error.NotFoundError):
         await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].flows[
             "flow1"
         ].invoke(input_content="test", flowAliasIdentifier="alias1")
@@ -136,7 +136,7 @@ async def test_memory_operations_error(mock_clients, config):
         },
         operation_name="GetAgentMemory",
     )
-    with pytest.raises(botocore.exceptions.ClientError):
+    with pytest.raises(fondat.error.ForbiddenError):
         await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].memory["mid"].get(
             agentAliasId="alias-1",
             memoryType="SESSION_SUMMARY"

@@ -10,10 +10,12 @@ async def test_create_session(mock_clients, config):
     _, runtime_client = mock_clients
     runtime_client.create_session.return_value = {
         "sessionId": "sid",
-        "agentId": "agent-1",
+        "sessionArn": "arn:aws:bedrock:us-east-2:123456789012:session/sid",
         "createdAt": "2024-01-01T00:00:00Z",
-        "status": "ACTIVE",
-        "description": "Test session"
+        "lastUpdatedAt": "2024-01-01T00:00:00Z",
+        "sessionStatus": "ACTIVE",
+        "sessionMetadata": {"k": "v"},
+        "encryptionKeyArn": "arn:aws:kms:us-east-2:123456789012:key/abcd1234"
     }
     res = await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions.create(
         encryptionKeyArn="arn:aws:kms:us-east-2:123456789012:key/abcd1234",
@@ -21,6 +23,10 @@ async def test_create_session(mock_clients, config):
         tags={"tag1": "value1"}
     )
     assert res.session_id == "sid"
+    assert res.session_arn == "arn:aws:bedrock:us-east-2:123456789012:session/sid"
+    assert res.session_status == "ACTIVE"
+    assert res.session_metadata == {"k": "v"}
+    assert res.encryption_key_arn == "arn:aws:kms:us-east-2:123456789012:key/abcd1234"
     runtime_client.create_session.assert_called_once_with(
         encryptionKeyArn="arn:aws:kms:us-east-2:123456789012:key/abcd1234",
         sessionMetadata={"k": "v"},

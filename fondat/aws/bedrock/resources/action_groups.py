@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 
-from fondat.aws.client import Config
+from fondat.aws.client import Config, wrap_client_error
 from fondat.aws.bedrock.domain import ActionGroup, ActionGroupSummary
 from fondat.pagination import Cursor, Page
 from fondat.resource import resource
@@ -61,6 +61,7 @@ class ActionGroupsResource:
                 action_group_id=d["actionGroupId"],
                 action_group_name=d["actionGroupName"],
                 description=d.get("description"),
+                _factory=lambda agid=d["actionGroupId"], self=self: self[agid],
             ),
         )
 
@@ -149,8 +150,9 @@ class ActionGroupResource:
             Mapping containing action group details
         """
         async with agent_client(self.config_agent) as client:
-            return await client.get_agent_action_group(
-                agentId=self._agent_id,
-                actionGroupId=self._action_group_id,
-                agentVersion=agentVersion
-            )
+            with wrap_client_error():
+                return await client.get_agent_action_group(
+                    agentId=self._agent_id,
+                    actionGroupId=self._action_group_id,
+                    agentVersion=agentVersion
+                )

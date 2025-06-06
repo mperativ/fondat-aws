@@ -52,9 +52,11 @@ async def test_session_parameter_validation(mock_clients, config):
     # Test with invalid metadata: passed directly to client
     runtime_client.create_session.return_value = {
         "sessionId": "sid",
-        "agentId": "agent-1",
+        "sessionArn": "arn:aws:bedrock:us-east-2:123456789012:session/sid",
         "createdAt": "2024-01-01T00:00:00Z",
-        "status": "ACTIVE"
+        "lastUpdatedAt": "2024-01-01T00:00:00Z",
+        "sessionStatus": "ACTIVE",
+        "sessionMetadata": {"": "value"}
     }
     await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions.create(
         sessionMetadata={"": "value"}

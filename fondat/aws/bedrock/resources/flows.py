@@ -3,8 +3,8 @@
 import json
 from collections.abc import Iterable
 
-from fondat.aws.client import Config
-from fondat.aws.bedrock.domain import Flow, FlowAlias, FlowInvocation, FlowSummary
+from fondat.aws.client import Config, wrap_client_error
+from fondat.aws.bedrock.domain import Flow, FlowInvocation, FlowSummary
 from fondat.pagination import Cursor, Page
 from fondat.resource import resource
 from fondat.security import Policy
@@ -65,6 +65,7 @@ class FlowsResource:
                     status=item["status"],
                     created_at=item["createdAt"],
                     description=item.get("description"),
+                    _factory=lambda fid=item["id"], self=self: self[fid],
                 )
                 for item in resp.get("flowSummaries", [])
             ]
@@ -154,7 +155,8 @@ class FlowResource:
             Flow details
         """
         async with agent_client(self.config_agent) as client:
-            return await client.get_flow(flowIdentifier=self._flow_id)
+            with wrap_client_error():
+                return await client.get_flow(flowIdentifier=self._flow_id)
 
     @property
     def versions(self) -> GenericVersionResource:
@@ -253,4 +255,5 @@ class FlowResource:
                 "performanceConfig": modelPerformanceConfiguration
             }
         async with runtime_client(self.config_runtime) as client:
-            return await client.invoke_flow(**params)
+            with wrap_client_error():
+                return await client.invoke_flow(**params)

@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 
-from fondat.aws.bedrock.domain import Agent, Invocation
+from fondat.aws.bedrock.domain import Agent, AgentInvocation, Invocation
 from fondat.aws.bedrock.resources.aliases import AliasesResource
 from fondat.aws.client import Config, wrap_client_error
 from fondat.resource import resource
@@ -69,7 +69,7 @@ class AgentResource:
         sessionState: dict | None = None,
         sourceArn: str | None = None,
         streamingConfigurations: dict | None = None,
-    ) -> Invocation:
+    ) -> AgentInvocation:
         """
         Invoke the agent with the given input.
 

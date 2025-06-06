@@ -56,11 +56,10 @@ class AgentsResource:
             mapper=lambda d: AgentSummary(
                 agent_id=d["agentId"],
                 agent_name=d["agentName"],
-                agent_status=d["status"],
-                description=d.get("description"),
-                foundation_model=d.get("foundationModel"),
+                status=d["status"],
                 last_updated_at=parse_bedrock_datetime(d.get("lastUpdatedAt")),
                 prepared_at=parse_bedrock_datetime(d.get("preparedAt")),
+                _factory=lambda aid=d["agentId"], self=self: self[aid],
             ),
         )
 

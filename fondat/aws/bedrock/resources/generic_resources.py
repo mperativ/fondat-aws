@@ -120,7 +120,7 @@ class GenericVersionResource:
                     version_name=d.get(fields["name"]),
                     created_at=parse_bedrock_datetime(d[fields["created_at"]]),
                     description=d.get(fields["description"]),
-                    metadata=d.get(fields["metadata"]),
+                    _factory=lambda vid=d[fields["id"]], self=self: self[vid],
                 ),
             )
 
@@ -288,14 +288,17 @@ class GenericAliasResource:
             }
 
     async def _list_aliases(
-        self, max_results: int | None = None, next_token: str | None = None
+        self,
+        max_results: int | None = None,
+        cursor: Cursor | None = None,
+        **kwargs,
     ) -> Page[AliasSummary]:
         """List aliases with pagination."""
         params = {self.id_field: self._parent_id}
         if max_results:
             params["maxResults"] = max_results
-        if next_token:
-            params["nextToken"] = next_token
+        if cursor:
+            params["nextToken"] = decode_cursor(cursor)
 
         async with agent_client(self.config) as client:
             resp = await getattr(client, self.list_method)(**params)
@@ -307,13 +310,18 @@ class GenericAliasResource:
                     alias_id=d[fields["id"]],
                     alias_name=d[fields["name"]],
                     created_at=parse_bedrock_datetime(d[fields["created_at"]]),
-                    description=d.get(fields["description"]),
                     metadata=d.get(fields["metadata"]),
+                    _factory=lambda aid=d[fields["id"]], self=self: self[aid],
                 ),
             )
 
     @operation(method="get", policies=lambda self: self.policies)
-    async def get(self, *, max_results: int | None = None, cursor: Cursor | None = None) -> Page[AliasSummary]:
+    async def get(
+        self,
+        *,
+        max_results: int | None = None,
+        cursor: Cursor | None = None,
+    ) -> Page[AliasSummary]:
         """
         List aliases of the parent resource.
 
@@ -385,12 +393,11 @@ class AliasResource:
         Returns:
             Alias details
         """
-        # For flows, the parameter is called "aliasIdentifier" instead of "flowAliasId"
-        if self.id_field == "flowIdentifier":
-            alias_field = "aliasIdentifier"
-        else:
-            alias_field = f"{self.id_field[:-2]}AliasId"
+        key_for_alias = {
+            "agentId": "agentAliasId",
+            "flowIdentifier": "aliasIdentifier",
+        }[self.id_field]
             
-        params = {self.id_field: self._parent_id, alias_field: self._alias_id}
+        params = {self.id_field: self._parent_id, key_for_alias: self._alias_id}
         async with agent_client(self.config) as client:
             return await getattr(client, self.get_method)(**params)

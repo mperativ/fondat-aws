@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 
-from fondat.aws.client import Config
+from fondat.aws.client import Config, wrap_client_error
 from fondat.aws.bedrock.domain import AgentCollaborator, AgentCollaboratorSummary
 from fondat.pagination import Cursor, Page
 from fondat.resource import resource
@@ -53,7 +53,8 @@ class CollaboratorsResource:
         if agentVersion is not None:
             params["agentVersion"] = agentVersion
         async with agent_client(self.config_agent) as client:
-            resp = await client.list_agent_collaborators(**params)
+            with wrap_client_error():
+                resp = await client.list_agent_collaborators(**params)
         return paginate(
             resp,
             items_key="agentCollaboratorSummaries",
@@ -62,6 +63,7 @@ class CollaboratorsResource:
                 collaborator_id=d["collaboratorId"],
                 collaborator_type=d["collaboratorType"],
                 created_at=parse_bedrock_datetime(d["createdAt"]),
+                _factory=lambda cid=d["collaboratorId"], self=self: self[cid],
             ),
         )
 
@@ -154,4 +156,5 @@ class CollaboratorResource:
         if agentVersion is not None:
             params["agentVersion"] = agentVersion
         async with agent_client(self.config_agent) as client:
-            return await client.get_agent_collaborator(**params)
+            with wrap_client_error():
+                return await client.get_agent_collaborator(**params)
