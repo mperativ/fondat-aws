@@ -152,11 +152,12 @@ class FlowResource:
         Retrieve details of this flow.
 
         Returns:
-            Flow details
+            Flow: Details of the flow
         """
         async with agent_client(self.config_agent) as client:
             with wrap_client_error():
-                return await client.get_flow(flowIdentifier=self._flow_id)
+                response = await client.get_flow(flowIdentifier=self._flow_id)
+                return Flow(**response)
 
     @property
     def versions(self) -> GenericVersionResource:
@@ -227,7 +228,7 @@ class FlowResource:
             modelPerformanceConfiguration: Optional model performance configuration
 
         Returns:
-            Mapping containing flow invocation results
+            FlowInvocation: Information about the flow invocation
         """
         str_content = input_content if isinstance(input_content, str) else json.dumps(input_content)
 
@@ -256,4 +257,5 @@ class FlowResource:
             }
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
-                return await client.invoke_flow(**params)
+                response = await client.invoke_flow(**params)
+                return FlowInvocation(**response)

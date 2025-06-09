@@ -16,6 +16,8 @@ from fondat.aws.bedrock.domain import (
     SessionSummary,
     InvocationSummary,
     MemorySessionSummary,
+    AgentAlias,
+    FlowAlias
 )
 
 
@@ -37,7 +39,6 @@ async def test_agent_summary_resource(mock_clients, mock_response):
         agent_id="test-agent",
         agent_name="Test Agent",
         status="ACTIVE",
-        last_updated_at=datetime.now(),
     )
     mock_resource = AsyncMock()
     mock_resource.get.return_value = mock_response
@@ -142,7 +143,15 @@ async def test_alias_summary_agent_resource(mock_clients, mock_response):
     """Test AliasSummary.resource property for agent aliases."""
     # Setup mock
     bedrock_agent, _ = mock_clients
-    bedrock_agent.get_agent_alias.return_value = mock_response
+    bedrock_agent.get_agent_alias.return_value = {
+        "agent_alias_arn": "arn:aws:bedrock:us-east-1:123456789012:agent/a1/alias/a1",
+        "agent_alias_id": "a1",
+        "agent_alias_name": "Test Alias",
+        "agent_alias_status": "ACTIVE",
+        "agent_id": "agent-1",
+        "created_at": "2024-03-20T10:00:00Z",
+        "updated_at": "2024-03-20T10:00:00Z"
+    }
 
     # Create summary and test resource property
     summary = AliasSummary(
@@ -151,12 +160,14 @@ async def test_alias_summary_agent_resource(mock_clients, mock_response):
         created_at=datetime.now(),
     )
     mock_resource = AsyncMock()
-    mock_resource.get.return_value = mock_response
+    mock_resource.get.return_value = AgentAlias(**bedrock_agent.get_agent_alias.return_value)
     summary._factory = lambda: mock_resource
 
     # Test resource property
     full = await summary.resource.get()
-    assert full == mock_response
+    assert isinstance(full, AgentAlias)
+    assert full.agent_alias_id == "a1"
+    assert full.agent_alias_name == "Test Alias"
 
 
 @pytest.mark.asyncio
@@ -164,7 +175,14 @@ async def test_alias_summary_flow_resource(mock_clients, mock_response):
     """Test AliasSummary.resource property for flow aliases."""
     # Setup mock
     bedrock_agent, _ = mock_clients
-    bedrock_agent.get_flow_alias.return_value = mock_response
+    bedrock_agent.get_flow_alias.return_value = {
+        "arn": "arn:aws:bedrock:us-east-1:123456789012:flow/f1/alias/fa1",
+        "flow_alias_id": "fa1",
+        "flow_alias_name": "Flow Alias 1",
+        "flow_id": "f1",
+        "created_at": "2024-03-20T10:00:00Z",
+        "updated_at": "2024-03-20T10:00:00Z"
+    }
 
     # Create summary and test resource property
     summary = AliasSummary(
@@ -173,12 +191,14 @@ async def test_alias_summary_flow_resource(mock_clients, mock_response):
         created_at=datetime.now(),
     )
     mock_resource = AsyncMock()
-    mock_resource.get.return_value = mock_response
+    mock_resource.get.return_value = FlowAlias(**bedrock_agent.get_flow_alias.return_value)
     summary._factory = lambda: mock_resource
 
     # Test resource property
     full = await summary.resource.get()
-    assert full == mock_response
+    assert isinstance(full, FlowAlias)
+    assert full.flow_alias_id == "fa1"
+    assert full.flow_alias_name == "Flow Alias 1"
 
 
 @pytest.mark.asyncio
@@ -234,11 +254,11 @@ async def test_session_summary_resource(mock_clients, mock_response):
 
     # Create summary and test resource property
     summary = SessionSummary(
-        memory_id="test-memory",
-        session_id="test-session",
-        session_start_time=datetime.now(),
-        session_expiry_time=datetime.now(),
-        summary_text="Test summary"
+        memoryId="test-memory",
+        sessionId="test-session",
+        sessionStartTime=datetime.now(),
+        sessionExpiryTime=datetime.now(),
+        summaryText="Test summary"
     )
     mock_resource = AsyncMock()
     mock_resource.get.return_value = mock_response

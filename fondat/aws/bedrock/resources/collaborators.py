@@ -147,7 +147,7 @@ class CollaboratorResource:
             agentVersion: Optional agent version
 
         Returns:
-            Collaborator details
+            AgentCollaborator: Collaborator details
         """
         params = {
             "agentId": self._agent_id,
@@ -157,4 +157,5 @@ class CollaboratorResource:
             params["agentVersion"] = agentVersion
         async with agent_client(self.config_agent) as client:
             with wrap_client_error():
-                return await client.get_agent_collaborator(**params)
+                response = await client.get_agent_collaborator(**params)
+                return AgentCollaborator(**response["agentCollaborator"])

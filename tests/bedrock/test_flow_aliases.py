@@ -2,6 +2,7 @@
 
 from fondat.aws.bedrock.resources.agents import AgentsResource
 from fondat.aws.bedrock.resources.generic_resources import GenericAliasResource
+from fondat.aws.bedrock.domain import FlowAlias
 from fondat.pagination import Page
 
 
@@ -40,9 +41,12 @@ async def test_get_flow_alias(mock_clients, config):
     """Test retrieving a specific flow alias by ID."""
     agent_client, _ = mock_clients
     agent_client.get_flow_alias.return_value = {
-        "aliasIdentifier": "fa1",
-        "aliasName": "Flow Alias 1",
-        "createdAt": "2024-03-20T10:00:00Z"
+        "arn": "arn:aws:bedrock:us-east-1:123456789012:flow/f1/alias/fa1",
+        "flow_alias_id": "fa1",
+        "flow_alias_name": "Flow Alias 1",
+        "flow_id": "f1",
+        "created_at": "2024-03-20T10:00:00Z",
+        "updated_at": "2024-03-20T10:00:00Z"
     }
 
     # Create a GenericAliasResource instance for flows
@@ -56,7 +60,16 @@ async def test_get_flow_alias(mock_clients, config):
     )
 
     res = await aliases["fa1"].get()
-    assert res["aliasIdentifier"] == "fa1"
+
+    assert isinstance(res, FlowAlias)
+    assert res.arn == "arn:aws:bedrock:us-east-1:123456789012:flow/f1/alias/fa1"
+    assert res.flow_alias_id == "fa1"
+    assert res.flow_alias_name == "Flow Alias 1"
+    assert res.flow_id == "f1"
+    assert res.created_at == "2024-03-20T10:00:00Z"
+    assert res.updated_at == "2024-03-20T10:00:00Z"
+
     agent_client.get_flow_alias.assert_called_once_with(
-        flowIdentifier="f1", aliasIdentifier="fa1"
+        flowIdentifier="f1",
+        aliasIdentifier="fa1"
     )

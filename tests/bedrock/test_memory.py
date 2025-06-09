@@ -2,8 +2,10 @@
 
 from fondat.aws.bedrock.resources.agents import AgentsResource
 from fondat.pagination import Page
+import pytest
 
 
+@pytest.mark.asyncio
 async def test_get_memory(mock_clients, config):
     """Test retrieving agent memory with pagination."""
     _, runtime_client = mock_clients
@@ -21,15 +23,19 @@ async def test_get_memory(mock_clients, config):
         ],
         "nextToken": "next_token"
     }
-    res = await AgentsResource(config_agent=config, config_runtime=config)[
-        "agent-1"
-    ].memory["mid"].get(
+    res = await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].memory["mid"].get(
         agentAliasId="alias-1",
         memoryType="SESSION_SUMMARY",
         max_items=10,
         cursor="prev_token".encode()
     )
-    assert res["memoryContents"][0]["sessionSummary"]["memoryId"] == "mid"
+    assert res.memoryContents[0].sessionSummary.memoryId == "mid"
+    assert res.memoryContents[0].sessionSummary.sessionId == "sid"
+    assert res.memoryContents[0].sessionSummary.sessionStartTime == "2024-01-01T00:00:00Z"
+    assert res.memoryContents[0].sessionSummary.sessionExpiryTime == "2024-01-01T00:00:00Z"
+    assert res.memoryContents[0].sessionSummary.summaryText == "Test summary"
+    assert res.nextToken == "next_token"
+
     runtime_client.get_agent_memory.assert_called_once_with(
         agentId="agent-1",
         memoryId="mid",

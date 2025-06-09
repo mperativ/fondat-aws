@@ -1,15 +1,26 @@
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, TypeVar, Generic
 
 from fondat.resource import resource
 from fondat.security import Policy
-from fondat.aws.bedrock.domain import Alias, AliasSummary, VersionSummary, Version
+from fondat.aws.bedrock.domain import (
+    AliasSummary, 
+    VersionSummary, 
+    AgentVersion,
+    FlowVersion,
+    PromptVersion,
+    AgentAlias,
+    FlowAlias
+)
 from fondat.pagination import Cursor, Page
 from ..decorators import operation
 from ..clients import agent_client
 from ..pagination import decode_cursor, paginate
 from ..cache import BedrockCache
 from ..utils import parse_bedrock_datetime
+
+VT = TypeVar("VT", AgentVersion, FlowVersion, PromptVersion)
+AT = TypeVar("AT", AgentAlias, FlowAlias)
 
 
 @resource
@@ -151,30 +162,36 @@ class GenericVersionResource:
         )
 
 
-    def __getitem__(self, version: str) -> "VersionResource":
+    def __getitem__(self, version: str) -> "VersionResource[VT]":
         """Get a specific version resource.
 
-        Args:
-            version: Version identifier
+        Parameters:
+            version: version identifier
 
         Returns:
             VersionResource instance
         """
-        return VersionResource(
+        dto_map = {
+            "agentId": AgentVersion,
+            "flowIdentifier": FlowVersion,
+            "promptIdentifier": PromptVersion,
+        }
+        return VersionResource[VT](
             self._parent_id,
             version,
             id_field=self.id_field,
             get_method=self.get_method,
+            dto_type=dto_map[self.id_field],
             config=self.config,
             policies=self.policies,
         )
 
 
 @resource
-class VersionResource:
+class VersionResource(Generic[VT]):
     """Resource for managing a specific version."""
 
-    __slots__ = ("_parent_id", "_version", "id_field", "get_method", "config", "policies")
+    __slots__ = ("_parent_id", "_version", "id_field", "get_method", "config", "policies", "_dto_type")
 
     def __init__(
         self,
@@ -183,6 +200,7 @@ class VersionResource:
         *,
         id_field: str,
         get_method: str,
+        dto_type: type[VT],
         config: Any | None = None,
         policies: Iterable[Policy] | None = None,
     ):
@@ -192,9 +210,10 @@ class VersionResource:
         self.get_method = get_method
         self.config = config
         self.policies = policies
+        self._dto_type = dto_type
 
     @operation(method="get", policies=lambda self: self.policies)
-    async def get(self) -> Version:
+    async def get(self) -> VT:
         """Get version details.
 
         Returns:
@@ -208,7 +227,8 @@ class VersionResource:
         
         params = {self.id_field: self._parent_id, key_for_version: self._version}
         async with agent_client(self.config) as client:
-            return await getattr(client, self.get_method)(**params)
+            response = await getattr(client, self.get_method)(**params)
+            return self._dto_type(**response)
 
 
 @resource
@@ -287,6 +307,14 @@ class GenericAliasResource:
                 "metadata": "metadata",
             }
 
+    def _get_dto_type(self) -> type[AT]:
+        """Get the DTO type for the current resource type."""
+        if self.id_field == "agentId":
+            return AgentAlias
+        elif self.id_field == "flowIdentifier":
+            return FlowAlias
+        raise ValueError(f"Unknown id_field: {self.id_field}")
+
     async def _list_aliases(
         self,
         max_results: int | None = None,
@@ -344,7 +372,7 @@ class GenericAliasResource:
             max_results=max_results,
         )
 
-    def __getitem__(self, alias_id: str) -> "AliasResource":
+    def __getitem__(self, alias_id: str) -> "AliasResource[AT]":
         """Get a specific alias resource.
 
         Args:
@@ -358,16 +386,17 @@ class GenericAliasResource:
             alias_id,
             id_field=self.id_field,
             get_method=self.get_method,
+            dto_type=self._get_dto_type(),
             config=self.config,
             policies=self.policies,
         )
 
 
 @resource
-class AliasResource:
+class AliasResource(Generic[AT]):
     """Resource for managing a specific alias."""
 
-    __slots__ = ("_parent_id", "_alias_id", "id_field", "get_method", "config", "policies")
+    __slots__ = ("_parent_id", "_alias_id", "id_field", "get_method", "config", "policies", "_dto_type")
 
     def __init__(
         self,
@@ -376,6 +405,7 @@ class AliasResource:
         *,
         id_field: str,
         get_method: str,
+        dto_type: type[AT],
         config: Any | None = None,
         policies: Iterable[Policy] | None = None,
     ):
@@ -385,9 +415,10 @@ class AliasResource:
         self.get_method = get_method
         self.config = config
         self.policies = policies
+        self._dto_type = dto_type
 
     @operation(method="get", policies=lambda self: self.policies)
-    async def get(self) -> Alias:
+    async def get(self) -> AT:
         """Get alias details.
 
         Returns:
@@ -400,4 +431,5 @@ class AliasResource:
             
         params = {self.id_field: self._parent_id, key_for_alias: self._alias_id}
         async with agent_client(self.config) as client:
-            return await getattr(client, self.get_method)(**params)
+            response = await getattr(client, self.get_method)(**params)
+            return self._dto_type(**response)

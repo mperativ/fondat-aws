@@ -145,7 +145,8 @@ class PromptResource:
             params["promptVersion"] = promptVersion
         async with agent_client(self.config_agent) as client:
             with wrap_client_error():
-                return await client.get_prompt(**params)
+                response = await client.get_prompt(**params)
+                return Prompt(**response)
 
     @property
     def versions(self) -> GenericVersionResource:

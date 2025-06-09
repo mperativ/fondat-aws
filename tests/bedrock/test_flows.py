@@ -9,26 +9,38 @@ from fondat.aws.bedrock.resources.generic_resources import GenericVersionResourc
 async def test_flow_invoke_minimal_params(mock_clients, config):
     """Test flow invocation with minimal required parameters."""
     _, runtime_client = mock_clients
-    runtime_client.invoke_flow.return_value = {"flow": "done"}
+    runtime_client.invoke_flow.return_value = {
+        "executionId": "exec-1",
+        "responseStream": "test response"
+    }
 
     res = (
         await AgentsResource(config_agent=config, config_runtime=config)["agent-1"]
         .flows["flow1"]
         .invoke(input_content="test", flowAliasIdentifier="alias1")
     )
-    assert res == {"flow": "done"}
+    assert res.executionId == "exec-1"
+    assert res.responseStream == "test response"
     runtime_client.invoke_flow.assert_called_once_with(
         flowIdentifier="flow1",
         flowAliasIdentifier="alias1",
-        inputs=[{"nodeName": "input", "content": {"document": "test"}}],
-        enableTrace=False,
+        inputs=[{
+            "nodeName": "input",
+            "content": {
+                "document": "test"
+            }
+        }],
+        enableTrace=False
     )
 
 
 async def test_flow_invoke_optional_params(mock_clients, config):
     """Test flow invocation with optional parameters."""
     _, runtime_client = mock_clients
-    runtime_client.invoke_flow.return_value = {"flow": "done"}
+    runtime_client.invoke_flow.return_value = {
+        "executionId": "exec-1",
+        "responseStream": "test response"
+    }
 
     res = (
         await AgentsResource(config_agent=config, config_runtime=config)["agent-1"]
@@ -44,21 +56,24 @@ async def test_flow_invoke_optional_params(mock_clients, config):
             modelPerformanceConfiguration={"threads": 2},
         )
     )
-    assert res == {"flow": "done"}
+    assert res.executionId == "exec-1"
+    assert res.responseStream == "test response"
     runtime_client.invoke_flow.assert_called_once_with(
         flowIdentifier="flow1",
         flowAliasIdentifier="alias1",
-        inputs=[
-            {
-                "nodeName": "start",
-                "content": {"document": "foo"},
-                "nodeInputName": "in",
-                "nodeOutputName": "out",
+        inputs=[{
+            "nodeName": "start",
+            "nodeInputName": "in",
+            "nodeOutputName": "out",
+            "content": {
+                "document": "foo"
             }
-        ],
+        }],
         enableTrace=True,
         executionId="exec-1",
-        modelPerformanceConfiguration={"performanceConfig": {"threads": 2}},
+        modelPerformanceConfiguration={
+            "performanceConfig": {"threads": 2}
+        }
     )
 
 
@@ -85,11 +100,22 @@ async def test_list_flows(mock_clients, config):
 async def test_get_flow(mock_clients, config):
     """Test retrieving a specific flow by ID."""
     agent_client, _ = mock_clients
-    agent_client.get_flow.return_value = {"flowIdentifier": "f1"}
+    agent_client.get_flow.return_value = {
+        "flowId": "f1",
+        "flowArn": "arn:aws:bedrock:us-east-2:123456789012:flow/f1",
+        "flowName": "Test Flow",
+        "status": "ACTIVE",
+        "createdAt": "2024-01-01T00:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z",
+        "definition": {},
+        "version": "1"
+    }
     res = await AgentsResource(config_agent=config, config_runtime=config)[
         "agent-1"
     ].flows["f1"].get()
-    assert res["flowIdentifier"] == "f1"
+    assert res.flowId == "f1"
+    assert res.flowName == "Test Flow"
+    assert res.status == "ACTIVE"
     agent_client.get_flow.assert_called_once_with(flowIdentifier="f1")
 
 
@@ -128,9 +154,16 @@ async def test_get_flow_version_with_generic(mock_clients, config):
     """Test retrieving a specific flow version using the generic class."""
     agent_client, _ = mock_clients
     agent_client.get_flow_version.return_value = {
+        "versionArn": "arn:aws:bedrock:us-east-1:123456789012:flow/f1/version/fv1",
+        "versionId": "fv1",
+        "version": "1",
+        "status": "ACTIVE",
+        "createdAt": "2024-03-20T10:00:00Z",
+        "updatedAt": "2024-03-20T10:00:00Z",
         "flowVersion": "fv1",
-        "versionName": "Flow Version 1",
-        "createdAt": "2024-03-20T10:00:00Z"
+        "flowId": "f1",
+        "flowName": "Test Flow",
+        "definition": {}
     }
 
     # Create a GenericVersionResource instance for flows
@@ -144,16 +177,27 @@ async def test_get_flow_version_with_generic(mock_clients, config):
     )
 
     result = await versions["fv1"].get()
-    assert result["flowVersion"] == "fv1"
+    assert result.versionArn == "arn:aws:bedrock:us-east-1:123456789012:flow/f1/version/fv1"
+    assert result.versionId == "fv1"
+    assert result.version == "1"
+    assert result.status == "ACTIVE"
+    assert result.flowVersion == "fv1"
+    assert result.flowId == "f1"
+    assert result.flowName == "Test Flow"
+    assert result.definition == {}
     agent_client.get_flow_version.assert_called_once_with(
-        flowIdentifier="f1", flowVersion="fv1"
+        flowIdentifier="f1",
+        flowVersion="fv1"
     )
 
 
 async def test_flow_invoke_complex_json_input(mock_clients, config):
     """Test flow invocation with complex JSON input containing various data types."""
     _, runtime_client = mock_clients
-    runtime_client.invoke_flow.return_value = {"flow": "done"}
+    runtime_client.invoke_flow.return_value = {
+        "executionId": "exec-1",
+        "responseStream": "test response"
+    }
 
     complex_input = {
         "text": "Hello World",
@@ -179,7 +223,8 @@ async def test_flow_invoke_complex_json_input(mock_clients, config):
             enableTrace=True
         )
     )
-    assert res == {"flow": "done"}
+    assert res.executionId == "exec-1"
+    assert res.responseStream == "test response"
     runtime_client.invoke_flow.assert_called_once_with(
         flowIdentifier="flow1",
         flowAliasIdentifier="alias1",
@@ -187,6 +232,35 @@ async def test_flow_invoke_complex_json_input(mock_clients, config):
             "nodeName": "complex_input",
             "content": {
                 "document": json.dumps(complex_input)
+            }
+        }],
+        enableTrace=True
+    )
+
+
+async def test_invoke_flow(mock_clients, config):
+    """Test invoking a flow with input content."""
+    _, runtime_client = mock_clients
+    runtime_client.invoke_flow.return_value = {
+        "executionId": "e1",
+        "responseStream": "test response"
+    }
+    res = await AgentsResource(config_agent=config, config_runtime=config)[
+        "agent-1"
+    ].flows["f1"].invoke(
+        input_content="test input",
+        flowAliasIdentifier="fa1",
+        enableTrace=True
+    )
+    assert res.executionId == "e1"
+    assert res.responseStream == "test response"
+    runtime_client.invoke_flow.assert_called_once_with(
+        flowIdentifier="f1",
+        flowAliasIdentifier="fa1",
+        inputs=[{
+            "nodeName": "input",
+            "content": {
+                "document": "test input"
             }
         }],
         enableTrace=True

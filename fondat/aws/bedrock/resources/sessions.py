@@ -14,6 +14,10 @@ from fondat.aws.bedrock.domain import (
     InvocationSummary,
     Session,
     SessionSummary,
+    ImageSource,
+    Image,
+    ContentBlock,
+    Payload,
 )
 from fondat.pagination import Cursor, Page
 
@@ -134,16 +138,8 @@ class SessionsResource:
             params["tags"] = tags
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
-                resp = await client.create_session(**params)
-                return Session(
-                    session_id=resp["sessionId"],
-                    session_arn=resp["sessionArn"],
-                    session_status=resp["sessionStatus"],
-                    created_at=parse_bedrock_datetime(resp["createdAt"]),
-                    last_updated_at=parse_bedrock_datetime(resp["lastUpdatedAt"]),
-                    encryption_key_arn=resp.get("encryptionKeyArn"),
-                    session_metadata=resp.get("sessionMetadata", {})
-                )
+                response = await client.create_session(**params)
+                return Session(**response)
 
     def __getitem__(self, session_id: str) -> "SessionResource":
         """Get a specific session resource.
@@ -191,7 +187,8 @@ class SessionResource:
         """
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
-                return await client.get_session(sessionIdentifier=self._session_id)
+                response = await client.get_session(sessionIdentifier=self._session_id)
+                return Session(**response)
 
     @operation(method="delete", policies=lambda self: self.policies)
     async def delete(self) -> None:
@@ -209,7 +206,8 @@ class SessionResource:
         """
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
-                return await client.end_session(sessionIdentifier=self._session_id)
+                response = await client.end_session(sessionIdentifier=self._session_id)
+                return Session(**response)
 
     @operation(method="patch", policies=lambda self: self.policies)
     async def update(
@@ -230,7 +228,8 @@ class SessionResource:
             params["sessionMetadata"] = sessionMetadata
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
-                return await client.update_session(**params)
+                response = await client.update_session(**params)
+                return Session(**response)
 
     @property
     def invocations(self) -> "InvocationsResource":
@@ -389,7 +388,8 @@ class InvocationResource:
             params["description"] = description
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
-                return await client.create_invocation(**params)
+                response = await client.create_invocation(**params)
+                return Invocation(**response)
 
     @operation(method="get", policies=lambda self: self.policies)
     async def get_step(
@@ -406,11 +406,28 @@ class InvocationResource:
         """
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
-                return await client.get_invocation_step(
+                response = await client.get_invocation_step(
                     sessionIdentifier=self._session_id,
                     invocationIdentifier=self._invocation_id,
                     invocationStepId=invocationStepId,
                 )
+                step_data = response["invocationStep"]
+                # Convert payload dictionary to Payload object
+                if "payload" in step_data:
+                    payload_data = step_data["payload"]
+                    content_blocks = []
+                    for block in payload_data.get("contentBlocks", []):
+                        image_data = None
+                        if "image" in block:
+                            image = block["image"]
+                            source = ImageSource(**image["source"])
+                            image_data = Image(format=image["format"], source=source)
+                        content_blocks.append(ContentBlock(
+                            image=image_data,
+                            text=block.get("text")
+                        ))
+                    step_data["payload"] = Payload(contentBlocks=content_blocks)
+                return InvocationStep(**step_data)
 
     @operation(method="get", policies=lambda self: self.policies)
     async def get_steps(

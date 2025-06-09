@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from fondat.aws.client import Config, wrap_client_error
 from fondat.resource import resource
 from fondat.security import Policy
-from fondat.aws.bedrock.domain import MemorySession, MemorySessionSummary
+from fondat.aws.bedrock.domain import MemorySessionSummary, MemoryContents, MemoryContent, SessionSummary
 from fondat.pagination import Cursor, Page
 
 from ..clients import runtime_client
@@ -141,7 +141,7 @@ class MemorySessionResource:
         *,
         max_items: int | None = None,
         cursor: Cursor | None = None,
-    ) -> MemorySession:
+    ) -> MemoryContents:
         """Get memory session details.
 
         Args:
@@ -165,7 +165,28 @@ class MemorySessionResource:
             params["nextToken"] = decode_cursor(cursor)
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
-                return await client.get_agent_memory(**params)
+                response = await client.get_agent_memory(**params)
+                
+                # Convert memory contents
+                memory_contents = []
+                for content in response.get("memoryContents", []):
+                    session_summary = content["sessionSummary"]
+                    memory_contents.append(
+                        MemoryContent(
+                            sessionSummary=SessionSummary(
+                                memoryId=session_summary["memoryId"],
+                                sessionExpiryTime=session_summary["sessionExpiryTime"],
+                                sessionId=session_summary["sessionId"],
+                                sessionStartTime=session_summary["sessionStartTime"],
+                                summaryText=session_summary["summaryText"]
+                            )
+                        )
+                    )
+                
+                return MemoryContents(
+                    memoryContents=memory_contents,
+                    nextToken=response.get("nextToken")
+                )
 
     @operation(method="delete", policies=lambda self: self.policies)
     async def delete(

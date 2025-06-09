@@ -48,5 +48,5 @@ async def test_get_agent(mock_clients, config):
     agent_client, _ = mock_clients
     agent_client.get_agent.return_value = {"agentId": "agent-1"}
     res = await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].get()
-    assert res["agentId"] == "agent-1"
+    assert res.agentId == "agent-1"
     agent_client.get_agent.assert_called_once_with(agentId="agent-1")

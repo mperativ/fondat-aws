@@ -46,6 +46,13 @@ async def test_session_parameter_validation(mock_clients, config):
     _, runtime_client = mock_clients
 
     # Test with empty session ID: no validation error, should call the client
+    runtime_client.get_session.return_value = {
+        "sessionId": "",
+        "sessionArn": "arn:aws:bedrock:us-east-2:123456789012:session/",
+        "createdAt": "2024-01-01T00:00:00Z",
+        "lastUpdatedAt": "2024-01-01T00:00:00Z",
+        "sessionStatus": "ACTIVE"
+    }
     await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions[""].get()
     runtime_client.get_session.assert_called_once_with(sessionIdentifier="")
 

@@ -3,7 +3,7 @@
 from collections.abc import Iterable
 
 from fondat.aws.client import Config, wrap_client_error
-from fondat.aws.bedrock.domain import ActionGroup, ActionGroupSummary
+from fondat.aws.bedrock.domain import ActionGroup, ActionGroupSummary, ActionGroupExecutor, S3Location, ApiSchema, FunctionSchema, Function, Parameter
 from fondat.pagination import Cursor, Page
 from fondat.resource import resource
 from fondat.security import Policy
@@ -147,12 +147,40 @@ class ActionGroupResource:
             agentVersion: The version of the agent
 
         Returns:
-            Mapping containing action group details
+            Action group details
         """
         async with agent_client(self.config_agent) as client:
             with wrap_client_error():
-                return await client.get_agent_action_group(
+                response = await client.get_agent_action_group(
                     agentId=self._agent_id,
                     actionGroupId=self._action_group_id,
                     agentVersion=agentVersion
                 )
+                group_data = response["agentActionGroup"]
+                
+                # Convert nested objects
+                if "actionGroupExecutor" in group_data:
+                    executor = group_data["actionGroupExecutor"]
+                    # Map lambda to lambda_ for the dataclass
+                    if "lambda" in executor:
+                        executor["lambda_"] = executor.pop("lambda")
+                    group_data["actionGroupExecutor"] = ActionGroupExecutor(**executor)
+                
+                if "apiSchema" in group_data:
+                    schema = group_data["apiSchema"]
+                    if "s3" in schema:
+                        schema["s3"] = S3Location(**schema["s3"])
+                    group_data["apiSchema"] = ApiSchema(**schema)
+                
+                if "functionSchema" in group_data:
+                    schema = group_data["functionSchema"]
+                    functions = []
+                    for func in schema.get("functions", []):
+                        params = {}
+                        for name, param in func.get("parameters", {}).items():
+                            params[name] = Parameter(**param)
+                        func["parameters"] = params
+                        functions.append(Function(**func))
+                    group_data["functionSchema"] = FunctionSchema(functions=functions)
+                
+                return ActionGroup(**group_data)

@@ -48,12 +48,12 @@ class AgentResource:
         Retrieve detailed information about the agent.
 
         Returns:
-            Mapping containing agent details
+            Agent: Detailed information about the Bedrock agent
         """
         async with agent_client(self.config_agent) as client:
             with wrap_client_error():
-                return await client.get_agent(agentId=self._id)
-
+                response = await client.get_agent(agentId=self._id)
+                return Agent(**response)
 
     @operation(method="post", policies=lambda self: self.policies)
     async def invoke(
@@ -75,7 +75,7 @@ class AgentResource:
 
         Args:
             inputText: Input text to process
-            sessionId: Session identifier. If None, a new session will be created
+            sessionId: Session identifier. If None, a new session will be created automatically
             agentAliasId: Agent alias identifier
             enableTrace: Enable trace information
             endSession: End session after invocation
@@ -86,7 +86,8 @@ class AgentResource:
             streamingConfigurations: Streaming configurations
 
         Returns:
-            Mapping containing agent invocation results
+            AgentInvocation: Information about the agent invocation. Note that even when a new session
+            is created (sessionId=None), this method returns an AgentInvocation, not a Session.
         """
         if sessionId is None:
             session = await self.sessions.create()
@@ -114,7 +115,8 @@ class AgentResource:
             params["streamingConfigurations"] = streamingConfigurations
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
-                return await client.invoke_agent(**params)
+                response = await client.invoke_agent(**params)
+                return AgentInvocation(**response)
 
     @property
     def versions(self):

@@ -22,11 +22,14 @@ async def test_create_session(mock_clients, config):
         sessionMetadata={"k": "v"},
         tags={"tag1": "value1"}
     )
-    assert res.session_id == "sid"
-    assert res.session_arn == "arn:aws:bedrock:us-east-2:123456789012:session/sid"
-    assert res.session_status == "ACTIVE"
-    assert res.session_metadata == {"k": "v"}
-    assert res.encryption_key_arn == "arn:aws:kms:us-east-2:123456789012:key/abcd1234"
+    assert res.sessionId == "sid"
+    assert res.sessionArn == "arn:aws:bedrock:us-east-2:123456789012:session/sid"
+    assert res.createdAt == "2024-01-01T00:00:00Z"
+    assert res.lastUpdatedAt == "2024-01-01T00:00:00Z"
+    assert res.sessionStatus == "ACTIVE"
+    assert res.sessionMetadata == {"k": "v"}
+    assert res.encryptionKeyArn == "arn:aws:kms:us-east-2:123456789012:key/abcd1234"
+
     runtime_client.create_session.assert_called_once_with(
         encryptionKeyArn="arn:aws:kms:us-east-2:123456789012:key/abcd1234",
         sessionMetadata={"k": "v"},
@@ -38,9 +41,20 @@ async def test_create_session(mock_clients, config):
 async def test_get_session(mock_clients, config):
     """Test retrieving session details by ID."""
     _, runtime_client = mock_clients
-    runtime_client.get_session.return_value = {"sessionId": "sid"}
+    runtime_client.get_session.return_value = {
+        "sessionId": "sid",
+        "sessionArn": "arn:aws:bedrock:us-east-2:123456789012:session/sid",
+        "createdAt": "2024-01-01T00:00:00Z",
+        "lastUpdatedAt": "2024-01-01T00:00:00Z",
+        "sessionStatus": "ACTIVE"
+    }
     res = await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions["sid"].get()
-    assert res["sessionId"] == "sid"
+    assert res.sessionId == "sid"
+    assert res.sessionArn == "arn:aws:bedrock:us-east-2:123456789012:session/sid"
+    assert res.createdAt == "2024-01-01T00:00:00Z"
+    assert res.lastUpdatedAt == "2024-01-01T00:00:00Z"
+    assert res.sessionStatus == "ACTIVE"
+
     runtime_client.get_session.assert_called_once_with(sessionIdentifier="sid")
 
 
@@ -56,9 +70,20 @@ async def test_delete_session(mock_clients, config):
 async def test_end_session(mock_clients, config):
     """Test ending an active session."""
     _, runtime_client = mock_clients
-    runtime_client.end_session.return_value = {"status": "ENDED"}
+    runtime_client.end_session.return_value = {
+        "sessionId": "sid",
+        "sessionArn": "arn:aws:bedrock:us-east-2:123456789012:session/sid",
+        "createdAt": "2024-01-01T00:00:00Z",
+        "lastUpdatedAt": "2024-01-01T00:00:00Z",
+        "sessionStatus": "ENDED"
+    }
     res = await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions["sid"].end()
-    assert res["status"] == "ENDED"
+    assert res.sessionId == "sid"
+    assert res.sessionArn == "arn:aws:bedrock:us-east-2:123456789012:session/sid"
+    assert res.createdAt == "2024-01-01T00:00:00Z"
+    assert res.lastUpdatedAt == "2024-01-01T00:00:00Z"
+    assert res.sessionStatus == "ENDED"
+
     runtime_client.end_session.assert_called_once_with(sessionIdentifier="sid")
 
 
@@ -67,16 +92,21 @@ async def test_update_session(mock_clients, config):
     """Test updating session metadata."""
     _, runtime_client = mock_clients
     runtime_client.update_session.return_value = {
+        "sessionId": "sid",
+        "sessionArn": "arn:aws:bedrock:us-east-2:123456789012:session/sid",
         "createdAt": "2024-01-01T00:00:00Z",
         "lastUpdatedAt": "2024-01-01T00:00:00Z",
-        "sessionArn": "arn:aws:bedrock:us-east-2:123456789012:session/sid",
-        "sessionId": "sid",
         "sessionStatus": "ACTIVE"
     }
     res = await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions["sid"].update(
         sessionMetadata={"k": "v"}
     )
-    assert res["sessionId"] == "sid"
+    assert res.sessionId == "sid"
+    assert res.sessionArn == "arn:aws:bedrock:us-east-2:123456789012:session/sid"
+    assert res.createdAt == "2024-01-01T00:00:00Z"
+    assert res.lastUpdatedAt == "2024-01-01T00:00:00Z"
+    assert res.sessionStatus == "ACTIVE"
+
     runtime_client.update_session.assert_called_once_with(
         sessionIdentifier="sid",
         sessionMetadata={"k": "v"}
@@ -88,14 +118,17 @@ async def test_create_invocation(mock_clients, config):
     """Test creating a new invocation within a session."""
     _, runtime_client = mock_clients
     runtime_client.create_invocation.return_value = {
-        "createdAt": "2024-01-01T00:00:00Z",
+        "sessionId": "sid",
         "invocationId": "iid",
-        "sessionId": "sid"
+        "createdAt": "2024-01-01T00:00:00Z"
     }
     res = await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions["sid"].invocations["iid"].create(
         description="Test invocation"
     )
-    assert res["invocationId"] == "iid"
+    assert res.sessionId == "sid"
+    assert res.invocationId == "iid"
+    assert res.createdAt == "2024-01-01T00:00:00Z"
+
     runtime_client.create_invocation.assert_called_once_with(
         sessionIdentifier="sid",
         invocationId="iid",
@@ -139,31 +172,47 @@ async def test_put_step(mock_clients, config):
 
 @pytest.mark.asyncio
 async def test_get_step(mock_clients, config):
-    """Test retrieving a specific step from an invocation."""
+    """Test retrieving invocation step details."""
     _, runtime_client = mock_clients
     runtime_client.get_invocation_step.return_value = {
         "invocationStep": {
             "invocationId": "iid",
-            "invocationStepId": "stp",
+            "invocationStepId": "step1",
             "invocationStepTime": "2024-01-01T00:00:00Z",
             "payload": {
                 "contentBlocks": [
                     {
                         "text": "Hello, world!"
+                    },
+                    {
+                        "image": {
+                            "format": "png",
+                            "source": {
+                                "s3Location": {
+                                    "uri": "s3://bucket/image.png"
+                                }
+                            }
+                        }
                     }
                 ]
             },
             "sessionId": "sid"
         }
     }
-    res = await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions["sid"].invocations["iid"].get_step(
-        invocationStepId="stp"
-    )
-    assert res["invocationStep"]["invocationStepId"] == "stp"
+    res = await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions["sid"].invocations["iid"].get_step("step1")
+    assert res.invocationId == "iid"
+    assert res.invocationStepId == "step1"
+    assert res.invocationStepTime == "2024-01-01T00:00:00Z"
+    assert res.sessionId == "sid"
+    assert len(res.payload.contentBlocks) == 2
+    assert res.payload.contentBlocks[0].text == "Hello, world!"
+    assert res.payload.contentBlocks[1].image.format == "png"
+    assert res.payload.contentBlocks[1].image.source.s3Location["uri"] == "s3://bucket/image.png"
+
     runtime_client.get_invocation_step.assert_called_once_with(
         sessionIdentifier="sid",
         invocationIdentifier="iid",
-        invocationStepId="stp"
+        invocationStepId="step1"
     )
 
 
@@ -249,7 +298,13 @@ async def test_get_invocation_step(mock_clients, config):
     res = await AgentsResource(config_agent=config, config_runtime=config)["agent-1"].sessions["sid"].invocations["iid"].get_step(
         invocationStepId="stp"
     )
-    assert res["invocationStep"]["invocationStepId"] == "stp"
+    assert res.invocationId == "iid"
+    assert res.invocationStepId == "stp"
+    assert res.invocationStepTime == "2024-01-01T00:00:00Z"
+    assert res.sessionId == "sid"
+    assert len(res.payload.contentBlocks) == 1
+    assert res.payload.contentBlocks[0].text == "Hello, world!"
+
     runtime_client.get_invocation_step.assert_called_once_with(
         sessionIdentifier="sid",
         invocationIdentifier="iid",
