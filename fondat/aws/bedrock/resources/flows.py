@@ -22,14 +22,13 @@ __all__ = ["FlowsResource", "FlowResource"]
 @resource
 class FlowsResource:
     """
-    Resource for managing agent flows.
+    Resource for managing flows.
     """
 
-    __slots__ = ("_agent_id", "config_agent", "config_runtime", "policies", "_cache")
+    __slots__ = ("config_agent", "config_runtime", "policies", "_cache")
 
     def __init__(
         self,
-        agent_id: str,
         *,
         config_agent: Config | None = None,
         config_runtime: Config | None = None,
@@ -37,7 +36,6 @@ class FlowsResource:
         cache_size: int = 100,
         cache_expire: int | float = 300,
     ):
-        self._agent_id = agent_id
         self.config_agent = config_agent
         self.config_runtime = config_runtime
         self.policies = policies
@@ -96,7 +94,7 @@ class FlowsResource:
             return await self._list_flows(max_results=max_results, cursor=cursor)
             
         # Use cache for first page results
-        cache_key = f"agent_{self._agent_id}_flows_{max_results}"
+        cache_key = f"flows_list_{max_results}"
         return await self._cache.get_cached_page(
             cache_key=cache_key,
             page_type=Page[FlowSummary],
@@ -115,7 +113,6 @@ class FlowsResource:
             FlowResource instance
         """
         return FlowResource(
-            self._agent_id,
             flow_id,
             config_agent=self.config_agent,
             config_runtime=self.config_runtime,
@@ -130,18 +127,16 @@ class FlowResource:
     Provides access to flow invocation and runtime operations.
     """
 
-    __slots__ = ("_agent_id", "_flow_id", "config_agent", "config_runtime", "policies")
+    __slots__ = ("_flow_id", "config_agent", "config_runtime", "policies")
 
     def __init__(
         self,
-        agent_id: str,
         flow_id: str,
         *,
         config_agent: Config | None = None,
         config_runtime: Config | None = None,
         policies: Iterable[Policy] | None = None,
     ):
-        self._agent_id = agent_id
         self._flow_id = flow_id
         self.config_agent = config_agent
         self.config_runtime = config_runtime

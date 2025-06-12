@@ -165,18 +165,6 @@ class AgentResource:
         )
 
     @property
-    def flows(self) -> FlowsResource:
-        """Get the flows resource for this agent."""
-        return FlowsResource(
-            self._id,
-            config_agent=self.config_agent,
-            config_runtime=self.config_runtime,
-            policies=self.policies,
-            cache_size=100,
-            cache_expire=300,
-        )
-
-    @property
     def sessions(self) -> SessionsResource:
         """Get the sessions resource for this agent."""
         return SessionsResource(

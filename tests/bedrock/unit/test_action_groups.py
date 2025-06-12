@@ -1,10 +1,9 @@
 import pytest
-from fondat.aws.bedrock import agents_resource
+from fondat.aws.bedrock import agents_resource, flows_resource
 from fondat.error import NotFoundError, ForbiddenError, BadRequestError
 from collections import namedtuple
 from tests.bedrock.unit.conftest import my_vcr
 
-ACTION_GROUP_ID = "WE3ABOQBJO"
 
 AwsCtx = namedtuple("AwsCtx", "config_agent config_runtime agents prompts flows")
 
@@ -15,9 +14,9 @@ async def aws_ctx(config, aws_session) -> AwsCtx:
     Uses VCR.py to record/replay HTTP interactions.
     """
     agents = agents_resource(config_agent=config, config_runtime=config)
+    flows = flows_resource(config_agent=config, config_runtime=config)
     page = await agents.get(max_results=1)
     agent = page.items[0]
-    flows = agent.resource.flows
 
     try:
         yield AwsCtx(config, config, agents, None, flows)
@@ -25,9 +24,9 @@ async def aws_ctx(config, aws_session) -> AwsCtx:
         pass
 
 @pytest.mark.usefixtures("patch_aiobotocore_to_boto3")
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_action_groups.yaml")
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_unit_list_action_groups.yaml")
 @pytest.mark.asyncio
-async def test_list_action_groups(aws_ctx):
+async def test_unit_list_action_groups(aws_ctx):
     """Test to list action groups."""
     ctx = aws_ctx
     resource = ctx.agents
@@ -41,9 +40,9 @@ async def test_list_action_groups(aws_ctx):
         # Description is optional, so we don't assert it must be non-None
 
 @pytest.mark.usefixtures("patch_aiobotocore_to_boto3")
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_action_groups_with_cursor.yaml")
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_unit_list_action_groups_with_cursor.yaml")
 @pytest.mark.asyncio
-async def test_list_action_groups_with_cursor(aws_ctx):
+async def test_unit_list_action_groups_with_cursor(aws_ctx):
     """Test to list action groups with pagination."""
     ctx = aws_ctx
     resource = ctx.agents
@@ -58,9 +57,9 @@ async def test_list_action_groups_with_cursor(aws_ctx):
         assert page1.cursor is not None
 
 @pytest.mark.usefixtures("patch_aiobotocore_to_boto3")
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_action_group.yaml")
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_unit_get_action_group.yaml")
 @pytest.mark.asyncio
-async def test_get_action_group(aws_ctx):
+async def test_unit_get_action_group(aws_ctx):
     """Test to get a specific action group."""
     ctx = aws_ctx
     resource = ctx.agents
@@ -74,9 +73,9 @@ async def test_get_action_group(aws_ctx):
     # Description is optional, so we don't assert it must be non-None
 
 @pytest.mark.usefixtures("patch_aiobotocore_to_boto3")
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_action_group_properties.yaml")
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_unit_action_group_properties.yaml")
 @pytest.mark.asyncio
-async def test_action_group_properties(aws_ctx):
+async def test_unit_action_group_properties(aws_ctx):
     """Test to verify the properties of an action group."""
     ctx = aws_ctx
     resource = ctx.agents
@@ -91,9 +90,9 @@ async def test_action_group_properties(aws_ctx):
     assert action_group.function_schema is not None
 
 @pytest.mark.usefixtures("patch_aiobotocore_to_boto3")
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_nonexistent_action_group.yaml")
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_unit_get_nonexistent_action_group.yaml")
 @pytest.mark.asyncio
-async def test_get_nonexistent_action_group(aws_ctx):
+async def test_unit_get_nonexistent_action_group(aws_ctx):
     """Test to verify behavior when trying to get a nonexistent action group."""
     ctx = aws_ctx
     resource = ctx.agents
@@ -104,9 +103,9 @@ async def test_get_nonexistent_action_group(aws_ctx):
         await resource[agent_id].action_groups["ABCDEFGHIJ"].get(agentVersion="DRAFT")
 
 @pytest.mark.usefixtures("patch_aiobotocore_to_boto3")
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_action_group_cache.yaml")
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_unit_action_group_cache.yaml")
 @pytest.mark.asyncio
-async def test_action_group_cache(aws_ctx):
+async def test_unit_action_group_cache(aws_ctx):
     """Test to verify the action group cache functionality."""
     ctx = aws_ctx
     resource = ctx.agents

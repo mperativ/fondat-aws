@@ -6,13 +6,12 @@ from fondat.aws.bedrock.domain import Flow, FlowSummary
 from fondat.pagination import Page
 from fondat.error import NotFoundError, ForbiddenError
 from tests.bedrock.unit.conftest import my_vcr
-from tests.bedrock.unit.test_config import TEST_AGENT_ID, TEST_FLOW_ID
+from tests.bedrock.unit.test_config import TEST_FLOW_ID
 
 @pytest.fixture
 def flows_resource(config):
-    """Fixture to provide flows resource for a given agent."""
+    """Fixture to provide flows resource."""
     return FlowsResource(
-        agent_id=TEST_AGENT_ID,
         config_agent=config,
         config_runtime=config,
         cache_size=10,

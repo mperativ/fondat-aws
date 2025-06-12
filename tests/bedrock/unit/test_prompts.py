@@ -1,9 +1,8 @@
 """Unit tests for prompts."""
 
 import pytest
-from fondat.aws.bedrock.resources.prompts import PromptsResource, PromptResource
-from fondat.aws.bedrock.domain import Prompt, PromptSummary
-from fondat.pagination import Page
+from fondat.aws.bedrock.resources.prompts import PromptsResource
+from fondat.aws.bedrock.domain import PromptSummary
 from fondat.error import NotFoundError, ForbiddenError
 from tests.bedrock.unit.conftest import my_vcr
 from tests.bedrock.unit.test_config import TEST_PROMPT_ID

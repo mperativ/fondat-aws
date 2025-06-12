@@ -21,3 +21,8 @@ if not TEST_PROMPT_ID:
 TEST_AGENT_ALIAS_ID = os.environ.get('TEST_AGENT_ALIAS_ID')
 if not TEST_AGENT_ALIAS_ID:
     raise ValueError("TEST_AGENT_ALIAS_ID environment variable is required")
+
+# Test Action Group IDs
+TEST_ACTION_GROUP_ID = os.environ.get('TEST_ACTION_GROUP_ID')
+if not TEST_ACTION_GROUP_ID:
+    raise ValueError("TEST_ACTION_GROUP_ID environment variable is required")

@@ -156,31 +156,3 @@ async def test_list_collaborators_live(aws_session):
     if coll.items:
         assert coll.items[0].collaborator_id is not None
     logger.info(f"Listed {len(coll.items)} collaborators live")
-
-@pytest.mark.asyncio
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_flows.yaml")
-async def test_list_flows_playback(aws_session):
-    """Playback: replay cassette and check flows."""
-    ctx = aws_session
-    resource = agents_resource(config_agent=ctx.config_agent)
-    page = await resource.get(max_results=1)
-    aid = page.items[0].agent_id
-    flows = await resource[aid].flows.get(max_results=1)
-    assert flows.items is not None
-    if flows.items:
-        assert hasattr(flows.items[0], "flow_id")
-        assert hasattr(flows.items[0], "flow_name")
-    logger.info(f"Listed {len(flows.items)} flows in playback")
-
-@pytest.mark.live_only
-@pytest.mark.asyncio
-async def test_list_flows_live(aws_session):
-    """Live only: against real AWS, check flows."""
-    ctx = aws_session
-    resource = agents_resource(config_agent=ctx.config_agent)
-    page = await resource.get(max_results=1)
-    aid = page.items[0].agent_id
-    flows = await resource[aid].flows.get(max_results=5)
-    assert flows.items is not None
-    if flows.items:
-        assert flows.items[0].flow_id is not None

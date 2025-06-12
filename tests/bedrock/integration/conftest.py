@@ -13,7 +13,7 @@ import vcr
 from contextlib import asynccontextmanager
 
 from fondat.aws.client import Config
-from fondat.aws.bedrock import agents_resource, prompts_resource
+from fondat.aws.bedrock import agents_resource, prompts_resource, flows_resource
 
 class AsyncClientWrapper:
     def __init__(self, client): self._client = client
@@ -78,7 +78,7 @@ my_vcr = vcr.VCR(
     ],
 )
 
-AwsCtx = namedtuple("AwsCtx", "config_agent config_runtime agents prompts flows")
+AwsCtx = namedtuple("AwsCtx", "config_agent config_runtime agents prompts")
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -117,12 +117,9 @@ async def aws_session(request, event_loop) -> AwsCtx:
     )
     agents = agents_resource(config_agent=cfg, config_runtime=cfg)
     prompts = prompts_resource(config_agent=cfg)
-    page = await agents.get(max_results=1)
-    agent = page.items[0]
-    flows = agent.resource.flows
 
     try:
-        yield AwsCtx(cfg, cfg, agents, prompts, flows)
+        yield AwsCtx(cfg, cfg, agents, prompts)
     finally:
         boto3.Session = orig_Session
 
@@ -171,19 +168,17 @@ def agent_alias(agent):
     return alias
 
 @pytest.fixture(scope="session")
-def prepared_flow(agent):
+def prepared_flow(aws_session):
     """Get a tuple of (flow_id, alias_id) for a prepared/active flow with a valid alias."""
-    flows = asyncio.run(agent.flows.get(max_results=10))
-    assert flows.items, "No flows found"
-    flow = flows.items[0]
+    flows = flows_resource(config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime)
+    page = asyncio.run(flows.get(max_results=10))
+    assert page.items, "No flows found"
+    flow = page.items[0]
     logger.info(f"Using flow: {mask_id(flow.flow_id)}")
-    
-    # Get aliases for this flow
-    aliases = asyncio.run(agent.flows[flow.flow_id].aliases.get())
+    aliases = asyncio.run(flows[flow.flow_id].aliases.get())
     assert aliases.items, f"No aliases found for flow {mask_id(flow.flow_id)}"
     alias = aliases.items[0]
     logger.info(f"Using alias: {mask_id(alias.alias_id)}")
-    
     return (flow.flow_id, alias.alias_id)
 
 @pytest.fixture

@@ -3,7 +3,7 @@ import pytest
 import logging
 from datetime import datetime, timezone
 from tests.bedrock.integration.conftest import my_vcr
-from fondat.aws.bedrock import agents_resource
+from fondat.aws.bedrock import agents_resource, flows_resource
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -83,21 +83,21 @@ async def test_session_lifecycle_live(aws_session):
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invoke_flow.yaml")
 async def test_invoke_flow_playback(aws_session):
     "Playback: invoke flow without error"
-    ctx = aws_session
-    resource = ctx.agents
+    resource = aws_session.agents
     # pick first agent
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id
-    # pick first flow
-    flows = await resource[agent_id].flows.get(max_results=1)
-    flow = flows.items[0]
+    # pick first flow (independiente)
+    flows = flows_resource(config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime)
+    flows_page = await flows.get(max_results=1)
+    flow = flows_page.items[0]
     # pick first alias
-    aliases = await resource[agent_id].flows[flow.flow_id].aliases.get(max_results=1)
+    aliases = await flows[flow.flow_id].aliases.get(max_results=1)
     alias = aliases.items[0].alias_id
     # create session
     session = await resource[agent_id].sessions.create()
     try:
-        response = await resource[agent_id].flows[flow.flow_id].invoke(
+        response = await flows[flow.flow_id].invoke(
             input_content="Write a poem in English about 'The Name of the Rose'. Make it thoughtful and insightful.",
             flowAliasIdentifier=alias,
             nodeName="FlowInputNode",
@@ -115,18 +115,18 @@ async def test_invoke_flow_playback(aws_session):
 @pytest.mark.asyncio
 async def test_invoke_flow_live(aws_session):
     """Live only: invoke flow against real AWS and cleanup session"""
-    ctx = aws_session
-    resource = ctx.agents
+    resource = aws_session.agents
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id
-    flows = await resource[agent_id].flows.get(max_results=5)
-    flow = flows.items[0]
-    aliases = await resource[agent_id].flows[flow.flow_id].aliases.get(max_results=1)
+    flows = flows_resource(config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime)
+    flows_page = await flows.get(max_results=5)
+    flow = flows_page.items[0]
+    aliases = await flows[flow.flow_id].aliases.get(max_results=1)
     alias = aliases.items[0].alias_id
     session = await resource[agent_id].sessions.create()
     output = ""
     try:
-        response = await resource[agent_id].flows[flow.flow_id].invoke(
+        response = await flows[flow.flow_id].invoke(
             input_content="Write a poem in English about 'The Name of the Rose'. Make it thoughtful and insightful.",
             flowAliasIdentifier=alias,
             nodeName="FlowInputNode",

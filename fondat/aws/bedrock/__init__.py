@@ -63,6 +63,18 @@ PromptsResource                                             # /prompts
 ├── .get()                                                  # List prompts
 └── [id] → PromptResource                                   # /prompts/{id}
     ├── .get()                                              # Get prompt
+
+FlowsResource                                               # /flows
+├── .get()                                                 # List flows
+└── [id] → FlowResource                                    # /flows/{id}
+    ├── .get()                                             # Get flow
+    ├── .invoke()                                          # Invoke flow (run-time)
+    ├── versions → VersionsResource                        # /flows/{id}/versions
+    │   ├── .get()                                         # List flow versions
+    │   └── [version_id] → FlowVersion                     # Get flow version
+    └── aliases → AliasesResource                          # /flows/{id}/aliases
+        ├── .get()                                         # List flow aliases
+        └── [alias_id] → FlowAlias                         # Get flow alias
 """
 
 from collections.abc import Iterable
@@ -72,8 +84,9 @@ from fondat.security import Policy
 
 from .resources.agents import AgentsResource
 from .resources.prompts import PromptsResource
+from .resources.flows import FlowsResource
 
-__all__ = ["agents_resource", "prompts_resource"]
+__all__ = ["agents_resource", "prompts_resource", "flows_resource"]
 
 
 def agents_resource(
@@ -127,6 +140,26 @@ def prompts_resource(
     """
     return PromptsResource(
         config_agent=config_agent,
+        policies=policies,
+        cache_size=cache_size,
+        cache_expire=cache_expire,
+    )
+
+
+def flows_resource(
+    *,
+    config_agent: Config | None = None,
+    config_runtime: Config | None = None,
+    policies: Iterable[Policy] | None = None,
+    cache_size: int = 100,
+    cache_expire: int | float = 300,
+) -> FlowsResource:
+    """
+    Create and return a root FlowsResource.
+    """
+    return FlowsResource(
+        config_agent=config_agent,
+        config_runtime=config_runtime,
         policies=policies,
         cache_size=cache_size,
         cache_expire=cache_expire,

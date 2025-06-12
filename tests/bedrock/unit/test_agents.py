@@ -102,11 +102,6 @@ async def test_agent_properties(agent_resource):
         assert action_groups is not None
         assert action_groups._agent_id == TEST_AGENT_ID
 
-        # Test flows property
-        flows = agent_resource.flows
-        assert flows is not None
-        assert flows._agent_id == TEST_AGENT_ID
-
         # Test sessions property
         sessions = agent_resource.sessions
         assert sessions is not None
