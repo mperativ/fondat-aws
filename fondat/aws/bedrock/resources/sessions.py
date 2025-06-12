@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 from typing import Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fondat.aws.client import Config, wrap_client_error
 from fondat.resource import resource
@@ -25,7 +25,7 @@ from ..clients import runtime_client
 from ..decorators import operation
 from ..pagination import decode_cursor, paginate
 from ..cache import BedrockCache
-from ..utils import parse_bedrock_datetime
+from ..utils import convert_dict_keys_to_snake_case, parse_bedrock_datetime
 
 
 @resource
@@ -72,11 +72,11 @@ class SessionsResource:
             resp,
             items_key="sessionSummaries",
             mapper=lambda d: SessionSummary(
+                memory_id=d.get("memoryId", ""),
                 session_id=d["sessionId"],
-                agent_id=d["agentId"],
-                status=d["status"],
-                description=d.get("description"),
-                created_at=parse_bedrock_datetime(d["createdAt"]),
+                session_start_time=parse_bedrock_datetime(d["createdAt"]),
+                session_expiry_time=parse_bedrock_datetime(d.get("lastUpdatedAt", d["createdAt"])),
+                summary_text=d.get("description", ""),
                 _factory=lambda sid=d["sessionId"], self=self: self[sid],
             ),
         )
@@ -139,7 +139,11 @@ class SessionsResource:
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
                 response = await client.create_session(**params)
-                return Session(**response)
+                session_data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
+                session_data.setdefault("lastUpdatedAt", session_data["createdAt"])
+                # Convert camelCase to snake_case
+                session_data = convert_dict_keys_to_snake_case(session_data)
+                return Session(**session_data)
 
     def __getitem__(self, session_id: str) -> "SessionResource":
         """Get a specific session resource.
@@ -188,7 +192,10 @@ class SessionResource:
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
                 response = await client.get_session(sessionIdentifier=self._session_id)
-                return Session(**response)
+                session_data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
+                # Convert camelCase to snake_case
+                session_data = convert_dict_keys_to_snake_case(session_data)
+                return Session(**session_data)
 
     @operation(method="delete", policies=lambda self: self.policies)
     async def delete(self) -> None:
@@ -207,7 +214,10 @@ class SessionResource:
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
                 response = await client.end_session(sessionIdentifier=self._session_id)
-                return Session(**response)
+                session_data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
+                # Convert camelCase to snake_case
+                session_data = convert_dict_keys_to_snake_case(session_data)
+                return Session(**session_data)
 
     @operation(method="patch", policies=lambda self: self.policies)
     async def update(
@@ -229,7 +239,10 @@ class SessionResource:
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
                 response = await client.update_session(**params)
-                return Session(**response)
+                session_data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
+                # Convert camelCase to snake_case
+                session_data = convert_dict_keys_to_snake_case(session_data)
+                return Session(**session_data)
 
     @property
     def invocations(self) -> "InvocationsResource":
@@ -344,6 +357,27 @@ class InvocationsResource:
             policies=self.policies,
         )
 
+    @operation(method="post", policies=lambda self: self.policies)
+    async def create(self) -> Invocation:
+        """Create a new invocation.
+
+        Returns:
+            Invocation details
+        """
+        async with runtime_client(self.config_runtime) as client:
+            with wrap_client_error():
+                response = await client.create_invocation(
+                    sessionIdentifier=self._session_id,
+                )
+                invocation_data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
+                # Convert camelCase to snake_case
+                invocation_data = convert_dict_keys_to_snake_case(invocation_data)
+                # Ensure required fields are present
+                invocation_data["session_id"] = self._session_id
+                if "created_at" not in invocation_data:
+                    invocation_data["created_at"] = datetime.now(timezone.utc)
+                return Invocation(**invocation_data)
+
 
 @resource
 class InvocationResource:
@@ -392,44 +426,6 @@ class InvocationResource:
                 return Invocation(**response)
 
     @operation(method="get", policies=lambda self: self.policies)
-    async def get_step(
-        self,
-        invocationStepId: str,
-    ) -> InvocationStep:
-        """Get invocation step details.
-
-        Args:
-            invocationStepId: Step identifier
-
-        Returns:
-            Step details
-        """
-        async with runtime_client(self.config_runtime) as client:
-            with wrap_client_error():
-                response = await client.get_invocation_step(
-                    sessionIdentifier=self._session_id,
-                    invocationIdentifier=self._invocation_id,
-                    invocationStepId=invocationStepId,
-                )
-                step_data = response["invocationStep"]
-                # Convert payload dictionary to Payload object
-                if "payload" in step_data:
-                    payload_data = step_data["payload"]
-                    content_blocks = []
-                    for block in payload_data.get("contentBlocks", []):
-                        image_data = None
-                        if "image" in block:
-                            image = block["image"]
-                            source = ImageSource(**image["source"])
-                            image_data = Image(format=image["format"], source=source)
-                        content_blocks.append(ContentBlock(
-                            image=image_data,
-                            text=block.get("text")
-                        ))
-                    step_data["payload"] = Payload(contentBlocks=content_blocks)
-                return InvocationStep(**step_data)
-
-    @operation(method="get", policies=lambda self: self.policies)
     async def get_steps(
         self,
         *,
@@ -456,22 +452,31 @@ class InvocationResource:
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
                 resp = await client.list_invocation_steps(**params)
-        return paginate(resp, items_key="invocationStepSummaries")
+        return paginate(
+            resp,
+            items_key="invocationStepSummaries",
+            mapper=lambda d: InvocationStepSummary(
+                invocation_id=d["invocationId"],
+                invocation_step_id=d["invocationStepId"],
+                invocation_step_time=parse_bedrock_datetime(d["invocationStepTime"]),
+                _factory=lambda sid=d["invocationStepId"], self=self: self[sid],
+            ),
+        )
 
     @operation(method="post", policies=lambda self: self.policies)
     async def put_step(
         self,
         payload: dict[str, Any],
-        invocationStepTime: datetime,
+        invocation_step_time: datetime,
         *,
-        invocationStepId: str | None = None,
+        invocation_step_id: str | None = None,
     ) -> str:
         """Add invocation step.
 
         Args:
             payload: Step payload
-            invocationStepTime: Step timestamp
-            invocationStepId: Step identifier
+            invocation_step_time: Step timestamp
+            invocation_step_id: Step identifier
 
         Returns:
             The invocation step ID
@@ -480,10 +485,55 @@ class InvocationResource:
             "sessionIdentifier": self._session_id,
             "invocationIdentifier": self._invocation_id,
             "payload": payload,
-            "invocationStepTime": invocationStepTime,
+            "invocationStepTime": invocation_step_time,
         }
-        if invocationStepId is not None:
-            params["invocationStepId"] = invocationStepId
+        if invocation_step_id is not None:
+            params["invocationStepId"] = invocation_step_id
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
-                return await client.put_invocation_step(**params)
+                response = await client.put_invocation_step(**params)
+                return response["invocationStepId"]
+
+    def __getitem__(self, step_id: str) -> "StepResource":
+        return StepResource(self, step_id)
+
+
+class StepResource:
+    def __init__(self, parent: 'InvocationResource', step_id: str):
+        self._parent = parent
+        self._step_id = step_id
+        self.config_runtime = parent.config_runtime
+        self.policies = parent.policies
+
+    @operation(method="get", policies=lambda self: self.policies)
+    async def get(self) -> InvocationStep:
+        async with runtime_client(self.config_runtime) as client:
+            with wrap_client_error():
+                response = await client.get_invocation_step(
+                    sessionIdentifier=self._parent._session_id,
+                    invocationIdentifier=self._parent._invocation_id,
+                    invocationStepId=self._step_id,
+                )
+                step_data = response["invocationStep"]
+                if "payload" in step_data:
+                    payload_data = step_data["payload"]
+                    content_blocks = []
+                    for block in payload_data.get("contentBlocks", []):
+                        image_data = None
+                        if "image" in block:
+                            image = block["image"]
+                            source = ImageSource(**image["source"])
+                            image_data = Image(format=image["format"], source=source)
+                        content_blocks.append(ContentBlock(
+                            image=image_data,
+                            text=block.get("text")
+                        ))
+                    step_data["payload"] = Payload(contentBlocks=content_blocks)
+                mapped_data = {
+                    "invocation_id": step_data["invocationId"],
+                    "invocation_step_id": step_data["invocationStepId"],
+                    "invocation_step_time": step_data["invocationStepTime"],
+                    "payload": step_data["payload"],
+                    "session_id": step_data["sessionId"]
+                }
+                return InvocationStep(**mapped_data)

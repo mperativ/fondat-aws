@@ -7,6 +7,7 @@ from fondat.aws.bedrock.resources.aliases import AliasesResource
 from fondat.aws.client import Config, wrap_client_error
 from fondat.resource import resource
 from fondat.security import Policy
+from fondat.aws.bedrock.utils import convert_dict_keys_to_snake_case
 
 from ..clients import agent_client, runtime_client
 from ..decorators import operation
@@ -53,7 +54,13 @@ class AgentResource:
         async with agent_client(self.config_agent) as client:
             with wrap_client_error():
                 response = await client.get_agent(agentId=self._id)
-                return Agent(**response)
+                data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
+                if "agent" in data:
+                    data.update(data.pop("agent"))
+                data["_factory"] = lambda: self
+                # Convert all keys to snake_case before instantiating Agent
+                data = convert_dict_keys_to_snake_case(data)
+                return Agent(**data)
 
     @operation(method="post", policies=lambda self: self.policies)
     async def invoke(
@@ -116,7 +123,9 @@ class AgentResource:
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
                 response = await client.invoke_agent(**params)
-                return AgentInvocation(**response)
+                # Convert all keys to snake_case before instantiating AgentInvocation
+                data = convert_dict_keys_to_snake_case(response)
+                return AgentInvocation(**data)
 
     @property
     def versions(self):

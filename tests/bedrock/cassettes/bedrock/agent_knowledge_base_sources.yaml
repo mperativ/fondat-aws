@@ -1,0 +1,21 @@
+[
+  {
+    "agentId": "0SQ1NTDM4A",
+    "agentVersion": "1",
+    "clientToken": "test-token",
+    "createdAt": "2025-05-22T19:14:01.811208180Z",
+    "dataDeletionPolicy": "RETAIN",
+    "dataSourceConfiguration": {
+      "s3Configuration": {
+        "bucketArn": "arn:aws:s3:::test-bucket",
+        "inclusionPrefixes": ["test/"]
+      },
+      "type": "S3"
+    },
+    "description": "Test knowledge base source for validation",
+    "knowledgeBaseId": "test-knowledge-base",
+    "knowledgeBaseSourceId": "test-source",
+    "knowledgeBaseSourceStatus": "ENABLED",
+    "updatedAt": "2025-05-22T19:14:01.811208180Z"
+  }
+] 

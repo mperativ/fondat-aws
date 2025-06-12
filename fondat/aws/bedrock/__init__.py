@@ -49,20 +49,19 @@ AgentsResource                                      # /agents
             ├── .delete()                           # Delete session
             ├── .end()                              # End session
             ├── .update()                           # Update session
-            └── invocations → InvocationsResource   # /sessions/{session_id}/invocations
+            └── .invocations                        # /agents/{agent_id}/sessions/{session_id}/invocations
                 ├── .get()                          # List invocations
                 ├── .create()                       # Create invocation
-                ├── .get_step()                     # Get invocation step
-                ├── .get_steps()                    # List invocation steps
-                └── .put_step()                     # Add / update step
+                └── [invocation_id] → InvocationResource  # /agents/{agent_id}/sessions/{session_id}/invocations/{invocation_id}
+                    ├── .get_steps()                # List invocation steps
+                    ├── .put_step()                 # Add/update step
+                    └── [step_id] → StepResource    # /agents/{agent_id}/sessions/{session_id}/invocations/{invocation_id}/steps/{step_id}
+                        └── .get()    # Get step
 
 PromptsResource                                     # /prompts
 ├── .get()                                          # List prompts
-└── [prompt_id] → PromptResource                    # /prompts/{prompt_id}
+└── [id] → PromptResource                           # /prompts/{id}
     ├── .get()                                      # Get prompt
-    └── versions → VersionsResource                 # /prompts/{prompt_id}/versions
-        ├── .get()                                  # List prompt versions
-        └── [version_id] → PromptVersion            # Get prompt version
 """
 
 from collections.abc import Iterable

@@ -1,0 +1,12 @@
+[
+  {
+    "sessionId": "test-session",
+    "sessionArn": "arn:aws:bedrock:us-east-2:123456789012:session/test-session",
+    "sessionStatus": "ACTIVE",
+    "createdAt": "2025-05-22T19:14:01.811208180Z",
+    "lastUpdatedAt": "2025-05-22T19:14:01.811208180Z",
+    "encryptionKeyArn": null,
+    "sessionMetadata": {},
+    "ResponseMetadata": null
+  }
+] 

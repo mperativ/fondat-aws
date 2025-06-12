@@ -1,35 +1,41 @@
-"""Shared fixtures for bedrock tests."""
+"""Common fixtures for bedrock tests."""
 
+from pathlib import Path
+import os
+import boto3
+import aiobotocore.session
 import pytest
-from unittest.mock import AsyncMock
-from fondat.aws.client import Config
 from contextlib import asynccontextmanager
 
-@pytest.fixture
-def mock_clients(monkeypatch):
-    """
-    Fixture to mock both control-plane and runtime clients based on service name.
-    Returns a tuple (agent_client, runtime_client).
-    """
-    agent_client = AsyncMock()
-    runtime_client = AsyncMock()
+class AsyncClientWrapper:
+    def __init__(self, client):
+        self._client = client
 
-    async def fake_create_client(service: str, config=None):
-        @asynccontextmanager
-        async def cm():
-            if service == "bedrock-agent":
-                yield agent_client
-            elif service == "bedrock-agent-runtime":
-                yield runtime_client
-            else:
-                raise ValueError(f"Unexpected service: {service}")
+    def __getattr__(self, name):
+        attr = getattr(self._client, name)
+        if callable(attr):
+            async def _async(*a, **kw):
+                return attr(*a, **kw)
+            return _async
+        return attr
 
-        return cm()
+@pytest.fixture(autouse=True)
+def patch_aiobotocore_to_boto3(monkeypatch):
+    """Patch aiobotocore to use boto3 for testing."""
+    # respeta LIVE=1 para grabar cassettes reales
+    if os.getenv("LIVE") == "1":
+        return
 
-    monkeypatch.setattr("fondat.aws.client.create_client", fake_create_client)
-    return agent_client, runtime_client
+    @asynccontextmanager
+    async def create_sync_client(self, service_name, **kwargs):
+        sess = boto3.Session(region_name=kwargs.get("region_name"))
+        try:
+            yield AsyncClientWrapper(sess.client(service_name, **kwargs))
+        finally:
+            pass
 
-@pytest.fixture
-def config():
-    """AWS client configuration."""
-    return Config(region_name="us-east-2") 
+    monkeypatch.setattr(
+        aiobotocore.session.AioSession,
+        "create_client",
+        create_sync_client,
+    ) 

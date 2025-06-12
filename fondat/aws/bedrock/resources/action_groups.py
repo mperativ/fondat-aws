@@ -12,6 +12,7 @@ from ..clients import agent_client
 from ..decorators import operation
 from ..pagination import decode_cursor, paginate
 from ..cache import BedrockCache
+from ..utils import convert_dict_keys_to_snake_case
 
 
 @resource
@@ -164,13 +165,18 @@ class ActionGroupResource:
                     # Map lambda to lambda_ for the dataclass
                     if "lambda" in executor:
                         executor["lambda_"] = executor.pop("lambda")
+                    # Set default customControl if not present
+                    if "customControl" not in executor:
+                        executor["customControl"] = "RETURN_CONTROL"
+                    # Convert remaining fields to snake_case
+                    executor = convert_dict_keys_to_snake_case(executor)
                     group_data["actionGroupExecutor"] = ActionGroupExecutor(**executor)
                 
                 if "apiSchema" in group_data:
                     schema = group_data["apiSchema"]
                     if "s3" in schema:
-                        schema["s3"] = S3Location(**schema["s3"])
-                    group_data["apiSchema"] = ApiSchema(**schema)
+                        schema["s3"] = S3Location(**convert_dict_keys_to_snake_case(schema["s3"]))
+                    group_data["apiSchema"] = ApiSchema(**convert_dict_keys_to_snake_case(schema))
                 
                 if "functionSchema" in group_data:
                     schema = group_data["functionSchema"]
@@ -178,9 +184,9 @@ class ActionGroupResource:
                     for func in schema.get("functions", []):
                         params = {}
                         for name, param in func.get("parameters", {}).items():
-                            params[name] = Parameter(**param)
+                            params[name] = Parameter(**convert_dict_keys_to_snake_case(param))
                         func["parameters"] = params
-                        functions.append(Function(**func))
+                        functions.append(Function(**convert_dict_keys_to_snake_case(func)))
                     group_data["functionSchema"] = FunctionSchema(functions=functions)
                 
-                return ActionGroup(**group_data)
+                return ActionGroup(**convert_dict_keys_to_snake_case(group_data))

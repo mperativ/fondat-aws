@@ -1,0 +1,18 @@
+[
+  {
+    "arn": "arn:aws:bedrock:us-east-2:123456789012:prompt/0SQ1NTDM4A",
+    "id": "0SQ1NTDM4A",
+    "name": "test-prompt",
+    "version": "1",
+    "variants": [
+      {
+        "text": "You are a helpful assistant"
+      }
+    ],
+    "created_at": "2025-05-22T19:14:01.811208180Z",
+    "updated_at": "2025-05-22T19:14:01.811208180Z",
+    "customer_encryption_key_arn": null,
+    "default_variant": "variant1",
+    "description": "Test prompt for validation"
+  }
+] 

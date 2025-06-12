@@ -7,6 +7,7 @@ from fondat.aws.bedrock.domain import AgentCollaborator, AgentCollaboratorSummar
 from fondat.pagination import Cursor, Page
 from fondat.resource import resource
 from fondat.security import Policy
+from fondat.aws.bedrock.utils import convert_dict_keys_to_snake_case
 
 from ..clients import agent_client
 from ..decorators import operation
@@ -158,4 +159,7 @@ class CollaboratorResource:
         async with agent_client(self.config_agent) as client:
             with wrap_client_error():
                 response = await client.get_agent_collaborator(**params)
-                return AgentCollaborator(**response["agentCollaborator"])
+                data = response["agentCollaborator"]
+                # Convert all keys to snake_case before instantiating AgentCollaborator
+                data = convert_dict_keys_to_snake_case(data)
+                return AgentCollaborator(**data)

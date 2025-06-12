@@ -1,0 +1,29 @@
+[
+  {
+    "versionArn": "arn:aws:bedrock:us-east-2:123456789012:agent/0SQ1NTDM4A/version/1",
+    "versionId": "1",
+    "version": "1",
+    "status": "PREPARED",
+    "createdAt": "2025-05-22T19:14:01.811208180Z",
+    "updatedAt": "2025-05-22T19:14:01.811208180Z",
+    "agentId": "0SQ1NTDM4A",
+    "agentName": "test-agent",
+    "agentStatus": "PREPARED",
+    "agentVersion": "1",
+    "agentCollaboration": "ENABLED",
+    "agentResourceRoleArn": "arn:aws:iam::123456789012:role/BedrockAgentRole",
+    "customerEncryptionKeyArn": null,
+    "description": "Test agent version for validation",
+    "failureReasons": [],
+    "foundationModel": "anthropic.claude-3-sonnet-20240229-v1:0",
+    "guardrailConfiguration": {},
+    "idleSessionTtlInSeconds": 3600,
+    "instruction": "You are a helpful assistant",
+    "memoryConfiguration": {},
+    "promptOverrideConfiguration": {},
+    "recommendedActions": [],
+    "executionRoleArn": "arn:aws:iam::123456789012:role/BedrockAgentRole",
+    "versionName": "v1",
+    "definition": {}
+  }
+] 

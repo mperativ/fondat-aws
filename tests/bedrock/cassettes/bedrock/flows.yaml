@@ -1,0 +1,19 @@
+[
+  {
+    "flowArn": "arn:aws:bedrock:us-east-2:123456789012:flow/0SQ1NTDM4A",
+    "flowId": "0SQ1NTDM4A",
+    "flowName": "test-flow",
+    "status": "PREPARED",
+    "createdAt": "2025-05-22T19:14:01.811208180Z",
+    "updatedAt": "2025-05-22T19:14:01.811208180Z",
+    "definition": {
+      "nodes": [],
+      "edges": []
+    },
+    "version": "1",
+    "customerEncryptionKeyArn": null,
+    "description": "Test flow for validation",
+    "executionRoleArn": "arn:aws:iam::123456789012:role/BedrockAgentRole",
+    "validations": []
+  }
+] 

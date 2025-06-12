@@ -1,0 +1,27 @@
+[
+  {
+    "agentId": "0SQ1NTDM4A",
+    "agentArn": "arn:aws:bedrock:us-east-2:123456789012:agent/0SQ1NTDM4A",
+    "agentName": "test-agent",
+    "agentStatus": "PREPARED",
+    "agentCollaboration": "ENABLED",
+    "agentResourceRoleArn": "arn:aws:iam::123456789012:role/BedrockAgentRole",
+    "agentVersion": "1",
+    "clientToken": "test-token",
+    "createdAt": "2025-05-22T19:14:01.811208180Z",
+    "customOrchestration": {},
+    "customerEncryptionKeyArn": null,
+    "description": "Test agent for validation",
+    "failureReasons": [],
+    "foundationModel": "anthropic.claude-3-sonnet-20240229-v1:0",
+    "guardrailConfiguration": {},
+    "idleSessionTTLInSeconds": 3600,
+    "instruction": "You are a helpful assistant",
+    "memoryConfiguration": {},
+    "orchestrationType": "AGENT",
+    "preparedAt": "2025-05-22T19:14:01.811208180Z",
+    "promptOverrideConfiguration": {},
+    "recommendedActions": [],
+    "updatedAt": "2025-05-22T19:14:01.811208180Z"
+  }
+] 

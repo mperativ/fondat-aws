@@ -1,18 +1,20 @@
 """Resource for managing agent memory."""
 
 from collections.abc import Iterable
+from sqlite3 import Cursor
 
+from fondat.aws.bedrock.pagination import decode_cursor
 from fondat.aws.client import Config, wrap_client_error
 from fondat.resource import resource
 from fondat.security import Policy
-from fondat.aws.bedrock.domain import MemorySessionSummary, MemoryContents, MemoryContent, SessionSummary
-from fondat.pagination import Cursor, Page
+from fondat.aws.bedrock.domain import MemoryContent, MemoryContents, SessionSummary
+from fondat.pagination import Page
+from fondat.error import NotFoundError, ForbiddenError
 
 from ..clients import runtime_client
 from ..decorators import operation
-from ..pagination import decode_cursor, paginate
 from ..cache import BedrockCache
-from ..utils import parse_bedrock_datetime
+from ..utils import convert_dict_keys_to_snake_case
 
 
 @resource
@@ -22,11 +24,12 @@ class MemoryResource:
     Provides access to retrieve and delete agent memory.
     """
 
-    __slots__ = ("_agent_id", "config_runtime", "policies", "_cache")
+    __slots__ = ("_agent_id", "_memory_id", "config_runtime", "policies", "_cache")
 
     def __init__(
         self,
         agent_id: str,
+        memory_id: str | None = None,
         *,
         config_runtime: Config | None = None,
         policies: Iterable[Policy] | None = None,
@@ -34,6 +37,7 @@ class MemoryResource:
         cache_expire: int | float = 300,
     ):
         self._agent_id = agent_id
+        self._memory_id = memory_id
         self.config_runtime = config_runtime
         self.policies = policies
         self._cache = BedrockCache(
@@ -41,97 +45,25 @@ class MemoryResource:
             cache_expire=cache_expire,
         )
 
-    async def _list_memories(
-        self,
-        max_results: int | None = None,
-        cursor: Cursor | None = None,
-    ) -> Page[MemorySessionSummary]:
-        """Internal method to list memories without caching."""
-        params = {"agentId": self._agent_id}
-        if max_results is not None:
-            params["maxResults"] = max_results
-        if cursor is not None:
-            params["nextToken"] = decode_cursor(cursor)
-        async with runtime_client(self.config_runtime) as client:
-            with wrap_client_error():
-                resp = await client.list_agent_memory(**params)
-        return paginate(
-            resp,
-            items_key="memorySessionSummaries",
-            mapper=lambda d: MemorySessionSummary(
-                memory_id=d["memoryId"],
-                memory_name=d["memoryName"],
-                created_at=parse_bedrock_datetime(d["createdAt"]),
-                description=d.get("description"),
-                metadata=d.get("metadata"),
-                _factory=lambda mid=d["memoryId"], self=self: self[mid],
-            ),
-        )
-
-    @operation(method="get", policies=lambda self: self.policies)
-    async def get(
-        self,
-        *,
-        max_results: int | None = None,
-        cursor: Cursor | None = None,
-    ) -> Page[MemorySessionSummary]:
-        """List agent memory sessions.
-
-        Args:
-            max_results: Maximum number of results to return
-            cursor: Pagination cursor
-
-        Returns:
-            Page of memory session summaries
-        """
-        # Don't cache if pagination is being used
-        if cursor is not None:
-            return await self._list_memories(max_results=max_results, cursor=cursor)
-            
-        # Use cache for first page results
-        cache_key = f"agent_{self._agent_id}_memories_{max_results}"
-        return await self._cache.get_cached_page(
-            cache_key=cache_key,
-            page_type=Page[MemorySessionSummary],
-            fetch_func=self._list_memories,
-            max_results=max_results,
-        )
-
-    def __getitem__(self, memory_id: str) -> "MemorySessionResource":
-        """Get a specific memory session resource.
+    def __getitem__(self, memory_id: str) -> "MemoryResource":
+        """Get a specific memory resource.
 
         Args:
             memory_id: Memory session identifier
 
         Returns:
-            MemorySessionResource instance
+            MemoryResource instance
         """
-        return MemorySessionResource(
-            self._agent_id,
-            memory_id,
+        # Create a new instance with the same configuration
+        resource = MemoryResource(
+            agent_id=self._agent_id,
+            memory_id=memory_id,
             config_runtime=self.config_runtime,
             policies=self.policies,
         )
-
-
-@resource
-class MemorySessionResource:
-    """Resource for managing a specific memory session."""
-
-    __slots__ = ("_agent_id", "_memory_id", "config_runtime", "policies")
-
-    def __init__(
-        self,
-        agent_id: str,
-        memory_id: str,
-        *,
-        config_runtime: Config | None = None,
-        policies: Iterable[Policy] | None = None,
-    ):
-        self._agent_id = agent_id
-        self._memory_id = memory_id
-        self.config_runtime = config_runtime
-        self.policies = policies
+        # Copy the cache from the parent resource
+        resource._cache = self._cache
+        return resource
 
     @operation(method="get", policies=lambda self: self.policies)
     async def get(
@@ -152,41 +84,64 @@ class MemorySessionResource:
 
         Returns:
             Memory session details
+
+        Raises:
+            NotFoundError: If the memory or agent is not found
+            ForbiddenError: If access to the memory is forbidden
         """
+        if not self._memory_id:
+            raise ValueError("Memory ID is required for get operation")
+            
         params = {
             "agentId": self._agent_id,
-            "memoryId": self._memory_id,
             "agentAliasId": agentAliasId,
             "memoryType": memoryType,
+            "memoryId": self._memory_id,
         }
         if max_items is not None:
             params["maxItems"] = max_items
         if cursor is not None:
             params["nextToken"] = decode_cursor(cursor)
-        async with runtime_client(self.config_runtime) as client:
-            with wrap_client_error():
-                response = await client.get_agent_memory(**params)
-                
+
+        cache_key = f"memory:{self._agent_id}:{self._memory_id}:{agentAliasId}:{memoryType}"
+
+        async def fetch_memory():
+            async with runtime_client(self.config_runtime) as client:
+                try:
+                    with wrap_client_error():
+                        response = await client.get_agent_memory(**params)
+                except Exception as e:
+                    # Ensure errors are propagated correctly
+                    if isinstance(e, (NotFoundError, ForbiddenError)):
+                        raise
+                    raise e
+                    
                 # Convert memory contents
                 memory_contents = []
                 for content in response.get("memoryContents", []):
                     session_summary = content["sessionSummary"]
                     memory_contents.append(
                         MemoryContent(
-                            sessionSummary=SessionSummary(
-                                memoryId=session_summary["memoryId"],
-                                sessionExpiryTime=session_summary["sessionExpiryTime"],
-                                sessionId=session_summary["sessionId"],
-                                sessionStartTime=session_summary["sessionStartTime"],
-                                summaryText=session_summary["summaryText"]
+                            session_summary=SessionSummary(
+                                memory_id=session_summary["memoryId"],
+                                session_expiry_time=session_summary["sessionExpiryTime"],
+                                session_id=session_summary["sessionId"],
+                                session_start_time=session_summary["sessionStartTime"],
+                                summary_text=session_summary["summaryText"]
                             )
                         )
                     )
                 
                 return MemoryContents(
-                    memoryContents=memory_contents,
-                    nextToken=response.get("nextToken")
+                    memory_contents=memory_contents,
+                    next_token=response.get("nextToken")
                 )
+
+        return await self._cache.get_cached_list(
+            cache_key=cache_key,
+            item_type=MemoryContents,
+            fetch_func=fetch_memory
+        )
 
     @operation(method="delete", policies=lambda self: self.policies)
     async def delete(
@@ -201,6 +156,9 @@ class MemorySessionResource:
             agentAliasId: Agent alias identifier
             sessionId: Session identifier
         """
+        if not self._memory_id:
+            raise ValueError("Memory ID is required for delete operation")
+            
         params = {
             "agentId": self._agent_id,
             "memoryId": self._memory_id,
@@ -208,6 +166,10 @@ class MemorySessionResource:
         }
         if sessionId is not None:
             params["sessionId"] = sessionId
+
+        cache_key = f"memory:{self._agent_id}:{self._memory_id}:{agentAliasId}"
+        await self._cache.invalidate(cache_key)
+
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
                 await client.delete_agent_memory(**params)

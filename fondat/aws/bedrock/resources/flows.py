@@ -3,6 +3,7 @@
 import json
 from collections.abc import Iterable
 
+from fondat.aws.bedrock.utils import convert_dict_keys_to_snake_case
 from fondat.aws.client import Config, wrap_client_error
 from fondat.aws.bedrock.domain import Flow, FlowInvocation, FlowSummary
 from fondat.pagination import Cursor, Page
@@ -157,7 +158,16 @@ class FlowResource:
         async with agent_client(self.config_agent) as client:
             with wrap_client_error():
                 response = await client.get_flow(flowIdentifier=self._flow_id)
-                return Flow(**response)
+                data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
+                if "arn" in data:
+                    data["flowArn"] = data.pop("arn")
+                if "id" in data:
+                    data["flowId"] = data.pop("id")
+                if "name" in data:
+                    data["flowName"] = data.pop("name")
+                data["_factory"] = lambda: self
+                data = convert_dict_keys_to_snake_case(data)
+                return Flow(**data)
 
     @property
     def versions(self) -> GenericVersionResource:
@@ -258,4 +268,6 @@ class FlowResource:
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
                 response = await client.invoke_flow(**params)
-                return FlowInvocation(**response)
+                flow_data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
+                flow_data = convert_dict_keys_to_snake_case(flow_data)
+                return FlowInvocation(**flow_data)

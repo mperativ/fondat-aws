@@ -39,9 +39,9 @@ if TYPE_CHECKING:
     from fondat.aws.bedrock.resources.collaborators import CollaboratorResource
     from fondat.aws.bedrock.resources.flows import FlowResource
     from fondat.aws.bedrock.resources.generic_resources import AliasResource, VersionResource
-    from fondat.aws.bedrock.resources.memory import MemorySessionResource
+    from fondat.aws.bedrock.resources.memory import MemoryResource
     from fondat.aws.bedrock.resources.prompts import PromptResource
-    from fondat.aws.bedrock.resources.sessions import InvocationResource, SessionResource
+    from fondat.aws.bedrock.resources.sessions import InvocationResource, SessionResource, StepResource
 
 T = TypeVar("T")
 
@@ -69,33 +69,33 @@ class _HasResource(Generic[T]):
 
 
 @dataclass
-class Agent:  # noqa: D101 – external API fields retain AWS camelCase
+class Agent(_HasResource["AgentResource"]):  # noqa: D101
     """Full detail of a Bedrock **Agent**."""
 
-    agentId: str
-    agentArn: Optional[str] = None
-    agentName: Optional[str] = None
-    agentStatus: Optional[str] = None
-    agentCollaboration: Optional[str] = None
-    agentResourceRoleArn: Optional[str] = None
-    agentVersion: Optional[str] = None
-    clientToken: Optional[str] = None
-    createdAt: Optional[datetime] = None
-    customOrchestration: Optional[Dict[str, Any]] = None
-    customerEncryptionKeyArn: Optional[str] = None
+    agent_id: str
+    agent_arn: Optional[str] = None
+    agent_name: Optional[str] = None
+    agent_status: Optional[str] = None
+    agent_collaboration: Optional[str] = None
+    agent_resource_role_arn: Optional[str] = None
+    agent_version: Optional[str] = None
+    client_token: Optional[str] = None
+    created_at: Optional[datetime] = None
+    custom_orchestration: Optional[Dict[str, Any]] = None
+    customer_encryption_key_arn: Optional[str] = None
     description: Optional[str] = None
-    failureReasons: List[str] = field(default_factory=list)
-    foundationModel: Optional[str] = None
-    guardrailConfiguration: Optional[Dict[str, Any]] = None
-    idleSessionTTLInSeconds: Optional[int] = None
+    failure_reasons: List[str] = field(default_factory=list)
+    foundation_model: Optional[str] = None
+    guardrail_configuration: Optional[Dict[str, Any]] = None
+    idle_session_ttl_in_seconds: Optional[int] = None
     instruction: Optional[str] = None
-    memoryConfiguration: Optional[Dict[str, Any]] = None
-    orchestrationType: Optional[str] = None
-    preparedAt: Optional[datetime] = None
-    promptOverrideConfiguration: Optional[Dict[str, Any]] = None
-    recommendedActions: List[str] = field(default_factory=list)
-    updatedAt: Optional[datetime] = None
-
+    memory_configuration: Optional[Dict[str, Any]] = None
+    orchestration_type: Optional[str] = None
+    prepared_at: Optional[datetime] = None
+    prompt_override_configuration: Optional[Dict[str, Any]] = None
+    recommended_actions: List[str] = field(default_factory=list)
+    updated_at: Optional[datetime] = None
+    _factory: Optional[Callable[[], "AgentResource"]] = field(default=None, repr=False, compare=False)
 
 @dataclass
 class AgentSummary(_HasResource["AgentResource"]):
@@ -114,31 +114,31 @@ class AgentSummary(_HasResource["AgentResource"]):
 
 @dataclass
 class AgentVersion:  # noqa: D101
-    versionArn: str
-    versionId: str
+    version_arn: str
+    version_id: str
     version: str
     status: str
-    createdAt: datetime
-    updatedAt: datetime
-    agentId: str
-    agentName: str
-    agentStatus: str
-    agentVersion: str
+    created_at: datetime
+    updated_at: datetime
+    agent_id: str
+    agent_name: str
+    agent_status: str
+    agent_version: str
     # optional extras
-    agentCollaboration: Optional[str] = None
-    agentResourceRoleArn: Optional[str] = None
-    customerEncryptionKeyArn: Optional[str] = None
+    agent_collaboration: Optional[str] = None
+    agent_resource_role_arn: Optional[str] = None
+    customer_encryption_key_arn: Optional[str] = None
     description: Optional[str] = None
-    failureReasons: List[str] = field(default_factory=list)
-    foundationModel: Optional[str] = None
-    guardrailConfiguration: Optional[Dict[str, Any]] = None
-    idleSessionTtlInSeconds: Optional[int] = None
+    failure_reasons: List[str] = field(default_factory=list)
+    foundation_model: Optional[str] = None
+    guardrail_configuration: Optional[Dict[str, Any]] = None
+    idle_session_ttl_in_seconds: Optional[int] = None
     instruction: Optional[str] = None
-    memoryConfiguration: Optional[Dict[str, Any]] = None
-    promptOverrideConfiguration: Optional[Dict[str, Any]] = None
-    recommendedActions: List[str] = field(default_factory=list)
-    executionRoleArn: Optional[str] = None
-    versionName: Optional[str] = None
+    memory_configuration: Optional[Dict[str, Any]] = None
+    prompt_override_configuration: Optional[Dict[str, Any]] = None
+    recommended_actions: List[str] = field(default_factory=list)
+    execution_role_arn: Optional[str] = None
+    version_name: Optional[str] = None
     definition: Optional[Dict[str, Any]] = None
 
 
@@ -167,16 +167,16 @@ class AgentAlias:  # noqa: D101
 
 @dataclass
 class AgentCollaborator:  # noqa: D101
-    agentId: str
-    agentVersion: str
-    collaboratorId: str
-    collaboratorName: str
-    createdAt: datetime
-    lastUpdatedAt: datetime
-    agentDescriptor: Dict[str, Any]
-    clientToken: Optional[str] = None
-    collaborationInstruction: Optional[str] = None
-    relayConversationHistory: Optional[str] = None
+    agent_id: str
+    agent_version: str
+    collaborator_id: str
+    collaborator_name: str
+    created_at: datetime
+    last_updated_at: datetime
+    agent_descriptor: Dict[str, Any]
+    client_token: Optional[str] = None
+    collaboration_instruction: Optional[str] = None
+    relay_conversation_history: Optional[str] = None
 
 
 @dataclass
@@ -196,9 +196,9 @@ class AgentCollaboratorSummary(_HasResource["CollaboratorResource"]):
 @dataclass
 class AgentInvocation:  # noqa: D101
     completion: Any  # EventStream from AWS SDK
-    contentType: Optional[str] = None
-    memoryId: Optional[str] = None
-    sessionId: Optional[str] = None
+    content_type: Optional[str] = None
+    memory_id: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 # ===========================================================================
@@ -207,19 +207,20 @@ class AgentInvocation:  # noqa: D101
 
 
 @dataclass
-class Flow:  # noqa: D101
-    flowArn: str
-    flowId: str
-    flowName: str
+class Flow(_HasResource["FlowResource"]):  # noqa: D101
+    flow_arn: str
+    flow_id: str
+    flow_name: str
     status: str
-    createdAt: datetime
-    updatedAt: datetime
+    created_at: datetime
+    updated_at: datetime
     definition: Dict[str, Any]
     version: str
-    customerEncryptionKeyArn: Optional[str] = None
+    customer_encryption_key_arn: Optional[str] = None
     description: Optional[str] = None
-    executionRoleArn: Optional[str] = None
+    execution_role_arn: Optional[str] = None
     validations: List[Dict[str, Any]] = field(default_factory=list)
+    _factory: Optional[Callable[[], "FlowResource"]] = field(default=None, repr=False, compare=False)
 
 
 @dataclass
@@ -237,19 +238,19 @@ class FlowSummary(_HasResource["FlowResource"]):
 
 @dataclass
 class FlowVersion:  # noqa: D101
-    versionArn: str
-    versionId: str
+    version_arn: str
+    version_id: str
     version: str
     status: str
-    createdAt: datetime
-    updatedAt: datetime
-    flowId: str
-    flowName: str
-    flowVersion: str
+    created_at: datetime
+    updated_at: datetime
+    flow_id: str
+    flow_name: str
+    flow_version: str
     definition: Dict[str, Any]
-    customerEncryptionKeyArn: Optional[str] = None
+    customer_encryption_key_arn: Optional[str] = None
     description: Optional[str] = None
-    executionRoleArn: Optional[str] = None
+    execution_role_arn: Optional[str] = None
     validations: List[Dict[str, Any]] = field(default_factory=list)
 
 
@@ -271,8 +272,8 @@ class FlowAlias:  # noqa: D101
 
 @dataclass
 class FlowInvocation:  # noqa: D101
-    executionId: str
-    responseStream: Optional[Any] = None  # EventStream
+    execution_id: str
+    response_stream: Optional[Any] = None  # EventStream
 
 
 # ===========================================================================
@@ -281,23 +282,24 @@ class FlowInvocation:  # noqa: D101
 
 
 @dataclass
-class Prompt:  # noqa: D101
-    promptArn: str
-    promptId: str
-    promptName: str
+class Prompt(_HasResource["PromptResource"]):  # noqa: D101
+    arn: str
+    id: str
+    name: str
     version: str
-    createdAt: datetime
-    updatedAt: datetime
     variants: List[Dict[str, Any]]
-    customerEncryptionKeyArn: Optional[str] = None
-    defaultVariant: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    customer_encryption_key_arn: Optional[str] = None
+    default_variant: Optional[str] = None
     description: Optional[str] = None
+    _factory: Optional[Callable[[], "PromptResource"]] = field(default=None, repr=False, compare=False)
 
 
 @dataclass
 class PromptSummary(_HasResource["PromptResource"]):
-    prompt_id: str
-    prompt_name: str
+    id: str
+    name: str
     created_at: datetime
     description: Optional[str] = None
     _factory: Optional[Callable[[], "PromptResource"]] = field(default=None, repr=False, compare=False)
@@ -305,18 +307,18 @@ class PromptSummary(_HasResource["PromptResource"]):
 
 @dataclass
 class PromptVersion:  # noqa: D101
-    versionArn: str
-    versionId: str
+    version_arn: str
+    version_id: str
     version: str
     status: str
-    createdAt: datetime
-    updatedAt: datetime
-    promptId: str
-    promptName: str
-    promptVersion: str
+    created_at: datetime
+    updated_at: datetime
+    prompt_id: str
+    prompt_name: str
+    prompt_version: str
     variants: List[Dict[str, Any]]
-    customerEncryptionKeyArn: Optional[str] = None
-    defaultVariant: Optional[str] = None
+    customer_encryption_key_arn: Optional[str] = None
+    default_variant: Optional[str] = None
     description: Optional[str] = None
 
 
@@ -327,22 +329,23 @@ class PromptVersion:  # noqa: D101
 
 @dataclass
 class Session:  # noqa: D101
-    sessionId: str
-    sessionArn: str
-    sessionStatus: str
-    createdAt: str
-    lastUpdatedAt: str
-    encryptionKeyArn: Optional[str] = None
-    sessionMetadata: Dict[str, str] = field(default_factory=dict)
+    session_id: str
+    session_arn: str
+    session_status: str
+    created_at: Optional[str] = None
+    last_updated_at: Optional[str] = None
+    encryption_key_arn: Optional[str] = None
+    session_metadata: Dict[str, str] = field(default_factory=dict)
+    response_metadata: Optional[Dict[str, Any]] = None
 
 
 @dataclass
 class SessionSummary(_HasResource["SessionResource"]):
-    memoryId: str
-    sessionExpiryTime: datetime
-    sessionId: str
-    sessionStartTime: datetime
-    summaryText: str
+    memory_id: str
+    session_expiry_time: datetime
+    session_id: str
+    session_start_time: datetime
+    summary_text: str
     _factory: Optional[Callable[[], "SessionResource"]] = field(default=None, repr=False, compare=False)
 
 
@@ -351,19 +354,21 @@ class SessionSummary(_HasResource["SessionResource"]):
 
 @dataclass
 class MemoryContent(_HasResource["SessionResource"]):
-    sessionSummary: SessionSummary
+    session_summary: SessionSummary
     _factory: Optional[Callable[[], "SessionResource"]] = field(default=None, repr=False, compare=False)
 
 
 @dataclass
 class MemoryContents(_HasResource["SessionResource"]):
-    memoryContents: List[MemoryContent]
-    nextToken: Optional[str] = None
+    memory_contents: List[MemoryContent]
+    next_token: Optional[str] = None
     _factory: Optional[Callable[[], "SessionResource"]] = field(default=None, repr=False, compare=False)
 
 
+
 @dataclass
-class MemorySession:  # noqa: D101
+class MemorySession(_HasResource["MemoryResource"]):
+    """Memory session details."""
     memory_id: str
     memory_arn: str
     memory_name: str
@@ -371,16 +376,7 @@ class MemorySession:  # noqa: D101
     updated_at: Optional[datetime] = None
     description: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
-
-
-@dataclass
-class MemorySessionSummary(_HasResource["MemorySessionResource"]):
-    memory_id: str
-    memory_name: str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    description: Optional[str] = None
-    _factory: Optional[Callable[[], "MemorySessionResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "MemoryResource"]] = field(default=None, repr=False, compare=False)
 
 
 # ===========================================================================
@@ -390,9 +386,9 @@ class MemorySessionSummary(_HasResource["MemorySessionResource"]):
 
 @dataclass
 class Invocation:  # noqa: D101
-    sessionId: str
-    invocationId: str
-    createdAt: str
+    session_id: str
+    invocation_id: str
+    created_at: str
 
 
 @dataclass
@@ -407,15 +403,15 @@ class InvocationSummary(_HasResource["InvocationResource"]):
 
 @dataclass
 class InvocationStep:  # noqa: D101
-    invocationId: str
-    invocationStepId: str
-    invocationStepTime: str
+    invocation_id: str
+    invocation_step_id: str
+    invocation_step_time: str
     payload: "Payload"
-    sessionId: str
+    session_id: str
 
 
 @dataclass
-class InvocationStepSummary:  # noqa: D101
+class InvocationStepSummary(_HasResource["StepResource"]):  # noqa: D101
     invocation_step_id: str
     session_id: str
     invocation_id: str
@@ -423,6 +419,7 @@ class InvocationStepSummary:  # noqa: D101
     created_at: datetime
     ended_at: Optional[datetime] = None
     payload: Dict[str, Any] = field(default_factory=dict)
+    _factory: Optional[Callable[[], "StepResource"]] = field(default=None, repr=False, compare=False)
 
 
 # ===========================================================================
@@ -432,14 +429,14 @@ class InvocationStepSummary:  # noqa: D101
 
 @dataclass
 class ActionGroupExecutor:  # noqa: D101
-    customControl: Literal["RETURN_CONTROL"]
+    custom_control: Literal["RETURN_CONTROL"]
     lambda_: str = field(metadata={"alias": "lambda"})
 
 
 @dataclass
 class S3Location:  # noqa: D101
-    s3BucketName: str
-    s3ObjectKey: str
+    s3_bucket_name: str
+    s3_object_key: str
 
 
 @dataclass
@@ -460,7 +457,7 @@ class Function:  # noqa: D101
     description: str
     name: str
     parameters: Dict[str, Parameter]
-    requireConfirmation: Literal["ENABLED", "DISABLED"]
+    require_confirmation: Literal["ENABLED", "DISABLED"]
 
 
 @dataclass
@@ -470,20 +467,20 @@ class FunctionSchema:  # noqa: D101
 
 @dataclass
 class ActionGroup:  # noqa: D101
-    actionGroupId: str
-    actionGroupName: str
-    actionGroupState: Literal["ENABLED", "DISABLED"]
-    agentId: str
-    agentVersion: str
-    createdAt: str
-    updatedAt: str
-    actionGroupExecutor: Optional[ActionGroupExecutor] = None
-    apiSchema: Optional[ApiSchema] = None
-    clientToken: Optional[str] = None
+    action_group_id: str
+    action_group_name: str
+    action_group_state: Literal["ENABLED", "DISABLED"]
+    agent_id: str
+    agent_version: str
+    created_at: str
+    updated_at: str
+    action_group_executor: Optional[ActionGroupExecutor] = None
+    api_schema: Optional[ApiSchema] = None
+    client_token: Optional[str] = None
     description: Optional[str] = None
-    functionSchema: Optional[FunctionSchema] = None
-    parentActionGroupSignatureParams: Dict[str, str] = field(default_factory=dict)
-    parentActionSignature: Optional[
+    function_schema: Optional[FunctionSchema] = None
+    parent_action_group_signature_params: Dict[str, str] = field(default_factory=dict)
+    parent_action_signature: Optional[
         Literal[
             "AMAZON.UserInput",
             "AMAZON.CodeInterpreter",
@@ -512,7 +509,7 @@ class ActionGroupSummary(_HasResource["ActionGroupResource"]):
 @dataclass
 class ImageSource:  # noqa: D101
     bytes: Optional[bytes] = None
-    s3Location: Optional[Dict[str, str]] = None
+    s3_location: Optional[Dict[str, str]] = None
 
 
 @dataclass

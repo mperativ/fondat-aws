@@ -1,1 +1,0 @@
-"""Tests for fondat.aws.bedrock module.""" 

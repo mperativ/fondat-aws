@@ -1,0 +1,18 @@
+[
+  {
+    "agentId": "0SQ1NTDM4A",
+    "agentVersion": "1",
+    "clientToken": "test-token",
+    "createdAt": "2025-05-22T19:14:01.811208180Z",
+    "description": "Test knowledge base for validation",
+    "knowledgeBaseConfiguration": {
+      "type": "VECTOR",
+      "vectorKnowledgeBaseConfiguration": {
+        "embeddingModelArn": "arn:aws:bedrock:us-east-2:123456789012:model/amazon.titan-embed-text-v1"
+      }
+    },
+    "knowledgeBaseId": "test-knowledge-base",
+    "knowledgeBaseState": "ENABLED",
+    "updatedAt": "2025-05-22T19:14:01.811208180Z"
+  }
+] 

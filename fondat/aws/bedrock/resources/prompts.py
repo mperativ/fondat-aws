@@ -12,7 +12,7 @@ from ..clients import agent_client
 from ..decorators import operation
 from ..pagination import decode_cursor, paginate
 from ..cache import BedrockCache
-from ..utils import parse_bedrock_datetime
+from ..utils import convert_dict_keys_to_snake_case, parse_bedrock_datetime
 from .generic_resources import GenericVersionResource
 
 
@@ -54,10 +54,10 @@ class PromptsResource:
             resp,
             items_key="promptSummaries",
             mapper=lambda d: PromptSummary(
-                prompt_id=d.get("promptId") or d.get("id"),
-                prompt_name=d.get("promptName") or d.get("name"),
+                id=d.get("promptId") or d.get("id"),
+                name=d.get("promptName") or d.get("name"),
                 description=d.get("description"),
-                created_at=parse_bedrock_datetime(d.get("createdAt") or d.get("created_at")),
+                created_at=parse_bedrock_datetime(d.get("createdAt")),
                 _factory=lambda pid=d.get("promptId") or d.get("id"), self=self: self[pid],
             ),
         )
@@ -91,17 +91,17 @@ class PromptsResource:
             max_results=max_results,
         )
 
-    def __getitem__(self, prompt_id: str) -> "PromptResource":
+    def __getitem__(self, id: str) -> "PromptResource":
         """Get a specific prompt resource.
 
         Args:
-            prompt_id: Prompt identifier
+            id: Prompt identifier
 
         Returns:
             PromptResource instance
         """
         return PromptResource(
-            prompt_id,
+            id,
             config_agent=self.config_agent,
             policies=self.policies,
         )
@@ -115,12 +115,12 @@ class PromptResource:
 
     def __init__(
         self,
-        prompt_id: str,
+        id: str,
         *,
         config_agent: Config | None = None,
         policies: Iterable[Policy] | None = None,
     ):
-        self._id = prompt_id
+        self._id = id
         self.config_agent = config_agent
         self.policies = policies
 
@@ -146,13 +146,17 @@ class PromptResource:
         async with agent_client(self.config_agent) as client:
             with wrap_client_error():
                 response = await client.get_prompt(**params)
-                return Prompt(**response)
+                # Map camelCase fields to snake_case
+                prompt_data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
+                prompt_data = convert_dict_keys_to_snake_case(prompt_data)
+                prompt_data['_factory'] = lambda self=self: self
+                return Prompt(**prompt_data)
 
     @property
     def versions(self) -> GenericVersionResource:
         """
         Returns a GenericVersionResource configured for prompt versions.
-        - prompt_id: parent_id (promptIdentifier)
+        - id: parent_id (promptIdentifier)
         - id_field: "promptIdentifier"
         - list_method: "list_prompt_versions"
         - get_method: "get_prompt_version"
