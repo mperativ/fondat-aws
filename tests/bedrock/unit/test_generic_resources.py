@@ -130,8 +130,6 @@ async def test_generic_alias_resource_list_aliases(mock_agent_client):
     assert alias.alias_id == "alias1"
     assert alias.alias_name == "test-alias"
     assert isinstance(alias.created_at, datetime)
-    # No description en AliasSummary
-    # assert alias.description == "Test alias"
 
 
 @pytest.mark.asyncio
@@ -276,12 +274,10 @@ async def test_generic_version_resource_cache(mock_agent_client):
 
     # Execute
     result1 = await resource.get(max_results=5)
-    result2 = await resource.get(max_results=5)  # Should use cache
+    result2 = await resource.get(max_results=5)
 
     # Verify
     assert result1 == result2
-    # No exigir assert_called_once si el diseño no lo garantiza
-    # mock_agent_client.list_agent_versions.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -312,9 +308,7 @@ async def test_generic_alias_resource_cache(mock_agent_client):
 
     # Execute
     result1 = await resource.get(max_results=5)
-    result2 = await resource.get(max_results=5)  # Should use cache
+    result2 = await resource.get(max_results=5)
 
     # Verify
     assert result1 == result2
-    # No exigir assert_called_once si el diseño no lo garantiza
-    # mock_agent_client.list_agent_aliases.assert_called_once() 

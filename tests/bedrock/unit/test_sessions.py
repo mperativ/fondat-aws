@@ -31,14 +31,14 @@ async def session_resource(sessions_resource):
 @pytest.fixture
 async def invocations_resource(session_resource):
     """Fixture to provide invocations resource."""
-    session = await session_resource
+    session = session_resource
     return session.invocations
 
 @pytest.fixture
 async def invocation_resource(invocations_resource):
     """Fixture to provide invocation resource."""
     # Create a new invocation for testing
-    invocations = await invocations_resource
+    invocations = invocations_resource
     invocation = await invocations.create()
     # Get the InvocationResource using the invocation ID
     return invocations[invocation.invocation_id]
@@ -96,7 +96,7 @@ async def test_create_session(sessions_resource):
 async def test_get_session(session_resource):
     """Test getting session details."""
     try:
-        session = await session_resource
+        session = session_resource
         session_details = await session.get()
         assert isinstance(session_details, Session)
         assert session_details.session_id
@@ -111,7 +111,7 @@ async def test_get_session(session_resource):
 async def test_end_session(session_resource):
     """Test ending a session."""
     try:
-        session = await session_resource
+        session = session_resource
         ended_session = await session.end()
         assert isinstance(ended_session, Session)
         assert ended_session.session_status == "ENDED"
@@ -123,7 +123,7 @@ async def test_end_session(session_resource):
 async def test_delete_session(session_resource):
     """Test deleting a session."""
     try:
-        session = await session_resource
+        session = session_resource
         # End the session first
         ended_session = await session.end()
         assert ended_session.session_status == "ENDED"
@@ -137,7 +137,7 @@ async def test_delete_session(session_resource):
 async def test_list_invocations(invocations_resource):
     """Test listing invocations."""
     try:
-        invocations = await invocations_resource
+        invocations = invocations_resource
         page = await invocations.get(max_results=5)
         assert isinstance(page.items, list)
         if page.items:
@@ -152,7 +152,7 @@ async def test_list_invocations(invocations_resource):
 async def test_create_invocation(invocations_resource):
     """Test creating an invocation."""
     try:
-        invocations = await invocations_resource
+        invocations = invocations_resource
         invocation = await invocations.create()
         assert isinstance(invocation, Invocation)
         assert invocation.invocation_id
@@ -166,7 +166,7 @@ async def test_create_invocation(invocations_resource):
 async def test_get_invocation(invocation_resource):
     """Test getting invocation details."""
     try:
-        invocation = await invocation_resource
+        invocation = invocation_resource
         # Get the invocation steps
         steps = await invocation.get_steps()
         assert isinstance(steps, Page)
@@ -185,7 +185,7 @@ async def test_get_invocation(invocation_resource):
 async def test_get_invocation_steps(invocation_resource):
     """Test getting invocation steps."""
     try:
-        invocation = await invocation_resource
+        invocation = invocation_resource
         steps = await invocation.get_steps()
         assert isinstance(steps, Page)
         assert isinstance(steps.items, list)
@@ -230,7 +230,7 @@ async def test_get_nonexistent_session(sessions_resource):
 async def test_invocation_error_handling(invocations_resource):
     """Test invocation error handling."""
     try:
-        invocations = await invocations_resource
+        invocations = invocations_resource
         # Test that getting steps for a non-existent invocation raises NotFoundError
         with pytest.raises(NotFoundError):
             await invocations["00000000-0000-0000-0000-000000000000"].get_steps()

@@ -4,9 +4,6 @@ import pytest
 import botocore.exceptions
 import fondat.error
 from fondat.aws.client import wrap_client_error
-from fondat.aws.bedrock.resources.agents import AgentsResource
-from fondat.aws.bedrock.resources.prompts import PromptsResource
-from fondat.aws.bedrock.resources.action_groups import ActionGroupsResource
 
 
 @pytest.mark.asyncio
@@ -135,14 +132,13 @@ async def test_wrap_client_error_missing_error_code():
 
 @pytest.mark.asyncio
 async def test_wrap_client_error_invalid_status_code():
-    """Test handling of ClientError con status code inválido."""
-    # Si el status code no está en el mapping, debe lanzar KeyError
+    """Test handling of ClientError with invalid status code."""
     with pytest.raises(KeyError):
         with wrap_client_error():
             raise botocore.exceptions.ClientError(
                 error_response={
                     "Error": {"Code": "ValidationException"},
-                    "ResponseMetadata": {"HTTPStatusCode": 999},  # Invalid status code
+                    "ResponseMetadata": {"HTTPStatusCode": 999},
                 },
                 operation_name="TestOperation",
             )
@@ -165,7 +161,7 @@ async def test_wrap_client_error_nested():
 
 @pytest.mark.asyncio
 async def test_wrap_client_error_with_context():
-    """Test wrap_client_error con mensaje adicional."""
+    """Test wrap_client_error with additional message."""
     error_message = "Invalid parameter value"
     with pytest.raises(fondat.error.BadRequestError):
         with wrap_client_error():
@@ -179,4 +175,3 @@ async def test_wrap_client_error_with_context():
                 },
                 operation_name="TestOperation",
             )
-    # No se puede asegurar que el mensaje esté en el error custom 

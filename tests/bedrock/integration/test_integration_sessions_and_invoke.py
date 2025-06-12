@@ -19,7 +19,7 @@ class DateTimeEncoder(json.JSONEncoder):
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_sessions.yaml")
 async def test_list_sessions_playback(aws_session):
     """Playback: list sessions and check sessionId field"""
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     # pick first agent
     page = await resource.get(max_results=1)
@@ -33,7 +33,7 @@ async def test_list_sessions_playback(aws_session):
 @pytest.mark.asyncio
 async def test_list_sessions_live(aws_session):
     """Live only: list sessions and verify sessionId is not None"""
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id
@@ -45,7 +45,7 @@ async def test_list_sessions_live(aws_session):
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
 async def test_session_lifecycle_playback(aws_session):
     """Playback: create session, list invocations, end and delete"""
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id
@@ -65,7 +65,7 @@ async def test_session_lifecycle_playback(aws_session):
 @pytest.mark.asyncio
 async def test_session_lifecycle_live(aws_session):
     """Live only: create session, list invocations, end and delete"""
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id
@@ -83,7 +83,7 @@ async def test_session_lifecycle_live(aws_session):
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invoke_flow.yaml")
 async def test_invoke_flow_playback(aws_session):
     "Playback: invoke flow without error"
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     # pick first agent
     page = await resource.get(max_results=1)
@@ -115,7 +115,7 @@ async def test_invoke_flow_playback(aws_session):
 @pytest.mark.asyncio
 async def test_invoke_flow_live(aws_session):
     """Live only: invoke flow against real AWS and cleanup session"""
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id
@@ -143,7 +143,7 @@ async def test_invoke_flow_live(aws_session):
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invocation_lifecycle.yaml")
 async def test_invocation_lifecycle_playback(aws_session):
     """Playback: create invocation, list steps, get step details"""
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     # pick first agent
     page = await resource.get(max_results=1)
@@ -173,7 +173,7 @@ async def test_invocation_lifecycle_playback(aws_session):
 @pytest.mark.asyncio
 async def test_invocation_lifecycle_live(aws_session):
     """Live: create invocation, list steps, get step details"""
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     # pick first agent
     page = await resource.get(max_results=1)
@@ -204,7 +204,7 @@ async def test_invocation_lifecycle_live(aws_session):
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invocation_steps.yaml")
 async def test_invocation_steps_playback(aws_session):
     """Playback: create invocation and add steps"""
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     # pick first agent
     page = await resource.get(max_results=1)
@@ -236,7 +236,7 @@ async def test_invocation_steps_playback(aws_session):
 @pytest.mark.asyncio
 async def test_invocation_steps_live(aws_session):
     """Live: create invocation and add steps"""
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     # pick first agent
     page = await resource.get(max_results=1)

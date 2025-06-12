@@ -33,14 +33,14 @@ class GenericVersionResource:
     in any resource that follows the AWS Bedrock pattern (agents, flows, or prompts).
 
     Parameters (in __init__):
-        parent_id: identifier of the parent resource (agentId, flowIdentifier, or promptIdentifier).
-        id_field: name of the field sent to the client (e.g. "agentId", "flowIdentifier", or "promptIdentifier").
+        parent_id: identifier of the parent resource (agentId or flowIdentifier).
+        id_field: name of the field sent to the client (e.g. "agentId" or "flowIdentifier").
         list_method: name of the botocore method to list versions
                      (e.g.: "list_agent_versions", "list_flow_versions", or "list_prompt_versions").
         get_method: name of the botocore method to get a single version
-                     (e.g.: "get_agent_version", "get_flow_version", or "get_prompt_version").
+                     (e.g.: "get_agent_version", "get_flow_version").
         items_key: key in the botocore response that contains the list
-                   (e.g.: "agentVersionSummaries", "flowVersionSummaries", or "promptVersionSummaries").
+                   (e.g.: "agentVersionSummaries", "flowVersionSummaries").
         config: AWS configuration (fondat.aws.client.Config), optional.
         policies: Collection of security policies, optional.
         cache_size: Maximum number of items to cache
@@ -171,7 +171,6 @@ class GenericVersionResource:
         dto_map = {
             "agentId": AgentVersion,
             "flowIdentifier": FlowVersion,
-            "promptIdentifier": PromptVersion,
         }
         return VersionResource[VT](
             self._parent_id,

@@ -11,7 +11,6 @@ from fondat.aws.bedrock.clients import agent_client, runtime_client, _create
 @pytest.mark.asyncio
 async def test_create_client_helper():
     """Test the _create helper function."""
-    # Test with sync context manager
     mock_cm = MagicMock()
     mock_cm.__enter__ = MagicMock()
     mock_cm.__exit__ = MagicMock()
@@ -25,7 +24,6 @@ async def test_create_client_helper():
         result = await _create("test-service")
         assert result is mock_cm
     
-    # Test with async context manager
     mock_async_cm = AsyncMock()
     
     async def fake_create_async_client(service, config=None):
@@ -54,7 +52,6 @@ async def test_agent_client():
         m.setattr("fondat.aws.client.create_client", fake_create_client)
         async with agent_client(Config(region_name="us-west-2")) as client:
             assert client is mock_client
-            # Test that client is properly closed
             mock_client.__aexit__.assert_not_called()
         mock_client.__aexit__.assert_called_once()
 
@@ -75,7 +72,6 @@ async def test_runtime_client():
         m.setattr("fondat.aws.client.create_client", fake_create_client)
         async with runtime_client(Config(region_name="us-west-2")) as client:
             assert client is mock_client
-            # Test that client is properly closed
             mock_client.__aexit__.assert_not_called()
         mock_client.__aexit__.assert_called_once()
 
@@ -100,13 +96,12 @@ async def test_client_concurrent_access():
     mock_client.__aenter__.return_value = mock_client
     
     async def fake_create_client(service, config=None):
-        await asyncio.sleep(0.1)  # Simulate network delay
+        await asyncio.sleep(0.1)
         return mock_client
     
     with pytest.MonkeyPatch.context() as m:
         m.setattr("fondat.aws.client.create_client", fake_create_client)
         
-        # Create multiple concurrent client requests
         async def use_client():
             async with agent_client(Config(region_name="us-west-2")) as client:
                 return client
@@ -114,9 +109,7 @@ async def test_client_concurrent_access():
         tasks = [use_client() for _ in range(5)]
         results = await asyncio.gather(*tasks)
         
-        # Verify all clients are the same instance
         assert all(r is mock_client for r in results)
-        # Cada contexto crea un cliente nuevo
         assert mock_client.__aenter__.call_count == 5
 
 
@@ -132,12 +125,9 @@ async def test_client_resource_cleanup():
     with pytest.MonkeyPatch.context() as m:
         m.setattr("fondat.aws.client.create_client", fake_create_client)
         
-        # Test normal cleanup
         async with agent_client(Config(region_name="us-west-2")) as client:
             pass
         mock_client.__aexit__.assert_called_once()
-        
-        # Test cleanup on error
         mock_client.__aexit__.reset_mock()
         with pytest.raises(ValueError):
             async with agent_client(Config(region_name="us-west-2")) as client:

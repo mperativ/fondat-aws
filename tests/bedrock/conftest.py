@@ -22,7 +22,6 @@ class AsyncClientWrapper:
 @pytest.fixture(autouse=True)
 def patch_aiobotocore_to_boto3(monkeypatch):
     """Patch aiobotocore to use boto3 for testing."""
-    # respeta LIVE=1 para grabar cassettes reales
     if os.getenv("LIVE") == "1":
         return
 

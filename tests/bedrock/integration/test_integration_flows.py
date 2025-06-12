@@ -4,7 +4,7 @@ from tests.bedrock.integration.conftest import my_vcr, aws_session
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_flows.yaml")
 async def test_list_flows_playback(aws_session):
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent = page.items[0]
@@ -20,7 +20,7 @@ async def test_list_flows_playback(aws_session):
 @pytest.mark.live_only
 @pytest.mark.asyncio
 async def test_list_flows_live(aws_session):
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent = page.items[0]
@@ -31,7 +31,7 @@ async def test_list_flows_live(aws_session):
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_flow_playback.yaml")
 async def test_get_flow_playback(aws_session):
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent = page.items[0]
@@ -49,7 +49,7 @@ async def test_get_flow_playback(aws_session):
 @pytest.mark.live_only
 @pytest.mark.asyncio
 async def test_get_flow_live(aws_session):
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent = page.items[0]
@@ -67,7 +67,7 @@ async def test_get_flow_live(aws_session):
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_flow_version_playback.yaml")
 async def test_get_flow_version_playback(aws_session):
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent = page.items[0]
@@ -82,7 +82,7 @@ async def test_get_flow_version_playback(aws_session):
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_flow_alias_playback.yaml")
 async def test_get_flow_alias_playback(aws_session):
-    ctx = await anext(aws_session)
+    ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent = page.items[0]

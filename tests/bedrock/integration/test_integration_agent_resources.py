@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_agents.yaml")
 async def test_list_agents_playback(aws_session):
-    """Playback: reproduce el cassette y comprueba agent_id y agent_name."""
-    ctx = await anext(aws_session)
+    """Playback: replay the cassette and check agent_id and agent_name."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=5)
     assert page.items is not None
@@ -19,8 +19,8 @@ async def test_list_agents_playback(aws_session):
 @pytest.mark.live_only
 @pytest.mark.asyncio
 async def test_list_agents_live(aws_session):
-    """Live only: contra AWS real comprueba agent_id y agent_name no sean None."""
-    ctx = await anext(aws_session)
+    """Live only: against real AWS, check agent_id and agent_name are not None."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=5)
     assert page.items
@@ -30,8 +30,8 @@ async def test_list_agents_live(aws_session):
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_agent.yaml")
 async def test_get_agent_playback(aws_session):
-    """Playback: reproduce cassette y comprueba get() devuelve el mismo agentId."""
-    ctx = await anext(aws_session)
+    """Playback: replay cassette and check get() returns the same agentId."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=1)
     aid = page.items[0].agent_id
@@ -41,8 +41,8 @@ async def test_get_agent_playback(aws_session):
 @pytest.mark.live_only
 @pytest.mark.asyncio
 async def test_get_agent_live(aws_session):
-    """Live only: contra AWS real comprueba get() devuelve un agentId válido."""
-    ctx = await anext(aws_session)
+    """Live only: against real AWS, check get() returns a valid agentId."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=1)
     aid = page.items[0].agent_id
@@ -52,8 +52,8 @@ async def test_get_agent_live(aws_session):
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_versions.yaml")
 async def test_list_versions_playback(aws_session):
-    """Playback: reproduce cassette y comprueba versiones."""
-    ctx = await anext(aws_session)
+    """Playback: replay cassette and check versions."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=1)
     aid = page.items[0].agent_id
@@ -65,8 +65,8 @@ async def test_list_versions_playback(aws_session):
 @pytest.mark.live_only
 @pytest.mark.asyncio
 async def test_list_versions_live(aws_session):
-    """Live only: contra AWS real comprueba versiones."""
-    ctx = await anext(aws_session)
+    """Live only: against real AWS, check versions."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=1)
     aid = page.items[0].agent_id
@@ -79,8 +79,8 @@ async def test_list_versions_live(aws_session):
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_aliases.yaml")
 async def test_list_aliases_playback(aws_session):
-    """Playback: reproduce cassette y comprueba aliases."""
-    ctx = await anext(aws_session)
+    """Playback: replay cassette and check aliases."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=1)
     aid = page.items[0].agent_id
@@ -92,8 +92,8 @@ async def test_list_aliases_playback(aws_session):
 @pytest.mark.live_only
 @pytest.mark.asyncio
 async def test_list_aliases_live(aws_session):
-    """Live only: contra AWS real comprueba aliases."""
-    ctx = await anext(aws_session)
+    """Live only: against real AWS, check aliases."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=1)
     aid = page.items[0].agent_id
@@ -105,8 +105,8 @@ async def test_list_aliases_live(aws_session):
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_action_groups.yaml")
 async def test_list_action_groups_playback(aws_session):
-    """Playback: reproduce cassette y comprueba action groups."""
-    ctx = await anext(aws_session)
+    """Playback: replay cassette and check action groups."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=1)
     aid = page.items[0].agent_id
@@ -118,8 +118,8 @@ async def test_list_action_groups_playback(aws_session):
 @pytest.mark.live_only
 @pytest.mark.asyncio
 async def test_list_action_groups_live(aws_session):
-    """Live only: contra AWS real comprueba action groups."""
-    ctx = await anext(aws_session)
+    """Live only: against real AWS, check action groups."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=1)
     aid = page.items[0].agent_id
@@ -132,8 +132,8 @@ async def test_list_action_groups_live(aws_session):
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_collaborators.yaml")
 async def test_list_collaborators_playback(aws_session):
-    """Playback: reproduce cassette y comprueba collaborators."""
-    ctx = await anext(aws_session)
+    """Playback: replay cassette and check collaborators."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=1)
     aid = page.items[0].agent_id
@@ -146,8 +146,8 @@ async def test_list_collaborators_playback(aws_session):
 @pytest.mark.live_only
 @pytest.mark.asyncio
 async def test_list_collaborators_live(aws_session):
-    """Live only: contra AWS real comprueba collaborators."""
-    ctx = await anext(aws_session)
+    """Live only: against real AWS, check collaborators."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=1)
     aid = page.items[0].agent_id
@@ -160,8 +160,8 @@ async def test_list_collaborators_live(aws_session):
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_flows.yaml")
 async def test_list_flows_playback(aws_session):
-    """Playback: reproduce cassette y comprueba flows."""
-    ctx = await anext(aws_session)
+    """Playback: replay cassette and check flows."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=1)
     aid = page.items[0].agent_id
@@ -175,8 +175,8 @@ async def test_list_flows_playback(aws_session):
 @pytest.mark.live_only
 @pytest.mark.asyncio
 async def test_list_flows_live(aws_session):
-    """Live only: contra AWS real comprueba flows."""
-    ctx = await anext(aws_session)
+    """Live only: against real AWS, check flows."""
+    ctx = aws_session
     resource = agents_resource(config_agent=ctx.config_agent)
     page = await resource.get(max_results=1)
     aid = page.items[0].agent_id

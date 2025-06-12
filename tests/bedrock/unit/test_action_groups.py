@@ -29,7 +29,7 @@ async def aws_ctx(config, aws_session) -> AwsCtx:
 @pytest.mark.asyncio
 async def test_list_action_groups(aws_ctx):
     """Test to list action groups."""
-    ctx = await anext(aws_ctx)
+    ctx = aws_ctx
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id
@@ -45,7 +45,7 @@ async def test_list_action_groups(aws_ctx):
 @pytest.mark.asyncio
 async def test_list_action_groups_with_cursor(aws_ctx):
     """Test to list action groups with pagination."""
-    ctx = await anext(aws_ctx)
+    ctx = aws_ctx
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id
@@ -62,7 +62,7 @@ async def test_list_action_groups_with_cursor(aws_ctx):
 @pytest.mark.asyncio
 async def test_get_action_group(aws_ctx):
     """Test to get a specific action group."""
-    ctx = await anext(aws_ctx)
+    ctx = aws_ctx
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id
@@ -78,7 +78,7 @@ async def test_get_action_group(aws_ctx):
 @pytest.mark.asyncio
 async def test_action_group_properties(aws_ctx):
     """Test to verify the properties of an action group."""
-    ctx = await anext(aws_ctx)
+    ctx = aws_ctx
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id
@@ -95,7 +95,7 @@ async def test_action_group_properties(aws_ctx):
 @pytest.mark.asyncio
 async def test_get_nonexistent_action_group(aws_ctx):
     """Test to verify behavior when trying to get a nonexistent action group."""
-    ctx = await anext(aws_ctx)
+    ctx = aws_ctx
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id
@@ -108,7 +108,7 @@ async def test_get_nonexistent_action_group(aws_ctx):
 @pytest.mark.asyncio
 async def test_action_group_cache(aws_ctx):
     """Test to verify the action group cache functionality."""
-    ctx = await anext(aws_ctx)
+    ctx = aws_ctx
     resource = ctx.agents
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id

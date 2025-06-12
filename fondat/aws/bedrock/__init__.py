@@ -9,59 +9,60 @@ The resource graph is organised as follows:
 
 .. code:: text
 
-AgentsResource                                      # /agents
-├── .get()                                          # List agents
-└── [agent_id] → AgentResource                      # /agents/{agent_id}
-    ├── .get()                                      # Get agent
-    ├── .invoke()                                   # Invoke agent (run-time)
-    ├── versions → VersionsResource                 # /agents/{agent_id}/versions
-    │   ├── .get()                                  # List agent versions
-    │   └── [version_id] → AgentVersion             # Get agent version
-    ├── aliases → AliasesResource                   # /agents/{agent_id}/aliases
-    │   ├── .get()                                  # List agent aliases
-    │   └── [alias_id] → AgentAlias                 # Get agent alias
-    ├── action_groups → ActionGroupsResource        # /agents/{agent_id}/action_groups
-    │   ├── .get()                                  # List action groups
-    │   └── [action_group_id] → ActionGroup         # Get action group
-    ├── collaborators → CollaboratorsResource       # /agents/{agent_id}/collaborators
-    │   ├── .get()                                  # List collaborators
-    │   └── [collaborator_id] → AgentCollaborator   # Get collaborator
-    ├── flows → FlowsResource                       # /agents/{agent_id}/flows
-    │   ├── .get()                                  # List flows
-    │   └── [flow_id] → FlowResource                # /flows/{flow_id}
-    │       ├── .get()                              # Get flow
-    │       ├── .invoke()                           # Invoke flow (run-time)
-    │       ├── versions → VersionsResource         # /flows/{flow_id}/versions
-    │       │   ├── .get()                          # List flow versions
-    │       │   └── [version_id] → FlowVersion      # Get flow version
-    │       └── aliases → AliasesResource           # /flows/{flow_id}/aliases
-    │           ├── .get()                          # List flow aliases
-    │           └── [alias_id] → FlowAlias          # Get flow alias
-    ├── memory → MemoryResource                     # /agents/{agent_id}/memory
-    │   ├── .get()                                  # List memory sessions
-    │   └── [memory_id] → MemorySession             # Get memory session
-    │       └── .delete()                           # Delete memory session
-    └── sessions → SessionsResource                 # /agents/{agent_id}/sessions
-        ├── .get()                                  # List sessions
-        ├── .create()                               # Create session
-        └── [session_id] → Session                  # /sessions/{session_id}
-            ├── .get()                              # Get session
-            ├── .delete()                           # Delete session
-            ├── .end()                              # End session
-            ├── .update()                           # Update session
-            └── .invocations                        # /agents/{agent_id}/sessions/{session_id}/invocations
-                ├── .get()                          # List invocations
-                ├── .create()                       # Create invocation
-                └── [invocation_id] → InvocationResource  # /agents/{agent_id}/sessions/{session_id}/invocations/{invocation_id}
-                    ├── .get_steps()                # List invocation steps
-                    ├── .put_step()                 # Add/update step
-                    └── [step_id] → StepResource    # /agents/{agent_id}/sessions/{session_id}/invocations/{invocation_id}/steps/{step_id}
-                        └── .get()    # Get step
+AgentsResource                                              # /agents
+├── .get()                                                  # List agents
+└── [agent_id] → AgentResource                              # /agents/{agent_id}
+    ├── .get()                                              # Get agent
+    ├── .invoke()                                           # Invoke agent (run-time)
+    ├── versions → VersionsResource                         # /agents/{agent_id}/versions
+    │   ├── .get()                                          # List agent versions
+    │   └── [version_id] → AgentVersion                     # Get agent version
+    ├── aliases → AliasesResource                           # /agents/{agent_id}/aliases
+    │   ├── .get()                                          # List agent aliases
+    │   └── [alias_id] → AgentAlias                         # Get agent alias
+    ├── action_groups → ActionGroupsResource                # /agents/{agent_id}/action_groups
+    │   ├── .get()                                          # List action groups
+    │   └── [action_group_id] → ActionGroup                 # Get action group
+    ├── collaborators → CollaboratorsResource               # /agents/{agent_id}/collaborators
+    │   ├── .get()                                          # List collaborators
+    │   └── [collaborator_id] → AgentCollaborator           # Get collaborator
+    ├── flows → FlowsResource                               # /agents/{agent_id}/flows
+    │   ├── .get()                                          # List flows
+    │   └── [flow_id] → FlowResource                        # /flows/{flow_id}
+    │       ├── .get()                                      # Get flow
+    │       ├── .invoke()                                   # Invoke flow (run-time)
+    │       ├── versions → VersionsResource                 # /flows/{flow_id}/versions
+    │       │   ├── .get()                                  # List flow versions
+    │       │   └── [version_id] → FlowVersion              # Get flow version
+    │       └── aliases → AliasesResource                   # /flows/{flow_id}/aliases
+    │           ├── .get()                                  # List flow aliases
+    │           └── [alias_id] → FlowAlias                  # Get flow alias
+    ├── memory → MemoryResource                             # /agents/{agent_id}/memory
+    │   ├── .get()                                          # Get memory contents
+    │   └── [memory_id] → MemoryResource                    # /agents/{agent_id}/memory/{memory_id}
+    │       ├── .get()                                      # Get memory session
+    │       └── .delete()                                   # Delete memory session
+    └── sessions → SessionsResource                         # /agents/{agent_id}/sessions
+        ├── .get()                                          # List sessions
+        ├── .create()                                       # Create session
+        └── [session_id] → SessionResource                  # /agents/{agent_id}/sessions/{session_id}
+            ├── .get()                                      # Get session
+            ├── .delete()                                   # Delete session
+            ├── .end()                                      # End session
+            ├── .update()                                   # Update session
+            └── invocations → InvocationsResource           # /agents/{agent_id}/sessions/{session_id}/invocations
+                ├── .get()                                  # List invocations
+                ├── .create()                               # Create invocation
+                └── [invocation_id] → InvocationResource    # /agents/{agent_id}/sessions/{session_id}/invocations/{invocation_id}
+                    ├── .get_steps()                        # List invocation steps
+                    ├── .put_step()                         # Add/update step
+                    └── [step_id] → StepResource            # /agents/{agent_id}/sessions/{session_id}/invocations/{invocation_id}/steps/{step_id}
+                        └── .get()                          # Get step
 
-PromptsResource                                     # /prompts
-├── .get()                                          # List prompts
-└── [id] → PromptResource                           # /prompts/{id}
-    ├── .get()                                      # Get prompt
+PromptsResource                                             # /prompts
+├── .get()                                                  # List prompts
+└── [id] → PromptResource                                   # /prompts/{id}
+    ├── .get()                                              # Get prompt
 """
 
 from collections.abc import Iterable
