@@ -26,17 +26,6 @@ AgentsResource                                              # /agents
     ├── collaborators → CollaboratorsResource               # /agents/{agent_id}/collaborators
     │   ├── .get()                                          # List collaborators
     │   └── [collaborator_id] → AgentCollaborator           # Get collaborator
-    ├── flows → FlowsResource                               # /agents/{agent_id}/flows
-    │   ├── .get()                                          # List flows
-    │   └── [flow_id] → FlowResource                        # /flows/{flow_id}
-    │       ├── .get()                                      # Get flow
-    │       ├── .invoke()                                   # Invoke flow (run-time)
-    │       ├── versions → VersionsResource                 # /flows/{flow_id}/versions
-    │       │   ├── .get()                                  # List flow versions
-    │       │   └── [version_id] → FlowVersion              # Get flow version
-    │       └── aliases → AliasesResource                   # /flows/{flow_id}/aliases
-    │           ├── .get()                                  # List flow aliases
-    │           └── [alias_id] → FlowAlias                  # Get flow alias
     ├── memory → MemoryResource                             # /agents/{agent_id}/memory
     │   ├── .get()                                          # Get memory contents
     │   └── [memory_id] → MemoryResource                    # /agents/{agent_id}/memory/{memory_id}
@@ -65,16 +54,16 @@ PromptsResource                                             # /prompts
     ├── .get()                                              # Get prompt
 
 FlowsResource                                               # /flows
-├── .get()                                                 # List flows
-└── [id] → FlowResource                                    # /flows/{id}
-    ├── .get()                                             # Get flow
-    ├── .invoke()                                          # Invoke flow (run-time)
-    ├── versions → VersionsResource                        # /flows/{id}/versions
-    │   ├── .get()                                         # List flow versions
-    │   └── [version_id] → FlowVersion                     # Get flow version
-    └── aliases → AliasesResource                          # /flows/{id}/aliases
-        ├── .get()                                         # List flow aliases
-        └── [alias_id] → FlowAlias                         # Get flow alias
+├── .get()                                                  # List flows
+└── [id] → FlowResource                                     # /flows/{id}
+    ├── .get()                                              # Get flow
+    ├── .invoke()                                           # Invoke flow (run-time)
+    ├── versions → VersionsResource                         # /flows/{id}/versions
+    │   ├── .get()                                          # List flow versions
+    │   └── [version_id] → FlowVersion                      # Get flow version
+    └── aliases → AliasesResource                           # /flows/{id}/aliases
+        ├── .get()                                          # List flow aliases
+        └── [alias_id] → FlowAlias                          # Get flow alias
 """
 
 from collections.abc import Iterable
