@@ -3,9 +3,12 @@
 from typing import Any, Mapping, Callable, TypeVar
 from fondat.pagination import Page, Cursor
 
-T = TypeVar('T')
+T = TypeVar("T")
 
-def paginate(resp: Mapping[str, Any], items_key: str, mapper: Callable[[dict], T] | None = None) -> Page[T]:
+
+def paginate(
+    resp: Mapping[str, Any], items_key: str, mapper: Callable[[dict], T] | None = None
+) -> Page[T]:
     """
     Wrap a botocore response into a Fondat Page, extracting items and cursor.
 

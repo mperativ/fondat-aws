@@ -1,8 +1,10 @@
 import pytest
 from typing import Dict, Any
-from fondat.aws.bedrock.decorators import operation
+
 from fondat.security import Policy
 from fondat.resource import resource
+from fondat.aws.bedrock.decorators import operation
+
 
 @resource
 class TestResource:
@@ -25,17 +27,20 @@ class TestResource:
     async def test_with_policies(self) -> str:
         return "success"
 
+
 @pytest.mark.asyncio
 async def test_operation_decorator():
     # Test with no policies
     resource = TestResource()
     assert await resource.simple_get() == "success"
 
+
 @pytest.mark.asyncio
 async def test_operation_decorator_with_args():
     # Test function with arguments
     resource = TestResource()
     assert await resource.test_with_args("test", "args") == "test_args"
+
 
 @pytest.mark.asyncio
 async def test_operation_decorator_with_dict():
@@ -45,9 +50,10 @@ async def test_operation_decorator_with_dict():
     result = await resource.test_with_dict(data)
     assert result == data
 
+
 @pytest.mark.asyncio
 async def test_operation_decorator_with_policies():
     # Test with policies
     policy = Policy()
     resource = TestResource(policies=policy)
-    assert await resource.test_with_policies() == "success" 
+    assert await resource.test_with_policies() == "success"

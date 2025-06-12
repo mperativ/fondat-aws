@@ -40,7 +40,9 @@ class AgentsResource:
             cache_expire=cache_expire,
         )
 
-    async def _list_agents(self, max_results: int | None = None, cursor: Cursor | None = None) -> Page[AgentSummary]:
+    async def _list_agents(
+        self, max_results: int | None = None, cursor: Cursor | None = None
+    ) -> Page[AgentSummary]:
         """Internal method to list agents without caching."""
         params: dict[str, Any] = {}
         if max_results is not None:
@@ -64,7 +66,9 @@ class AgentsResource:
         )
 
     @operation(method="get", policies=lambda self: self.policies)
-    async def get(self, *, max_results: int | None = None, cursor: Cursor | None = None) -> Page[AgentSummary]:
+    async def get(
+        self, *, max_results: int | None = None, cursor: Cursor | None = None
+    ) -> Page[AgentSummary]:
         """
         List available Bedrock agents.
 
@@ -78,7 +82,7 @@ class AgentsResource:
         # Don't cache if pagination is being used
         if cursor is not None:
             return await self._list_agents(max_results=max_results, cursor=cursor)
-            
+
         # Use cache for first page results
         cache_key = f"agents_list_{max_results}"
         return await self._cache.get_cached_page(

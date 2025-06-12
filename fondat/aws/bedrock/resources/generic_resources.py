@@ -1,18 +1,18 @@
+"""Generic resources for AWS Bedrock."""
+
 from collections.abc import Iterable
 from typing import Any, TypeVar, Generic
-import json
-from datetime import datetime
 
 from fondat.resource import resource
 from fondat.security import Policy
 from fondat.aws.bedrock.domain import (
-    AliasSummary, 
-    VersionSummary, 
+    AliasSummary,
+    VersionSummary,
     AgentVersion,
     FlowVersion,
     PromptVersion,
     AgentAlias,
-    FlowAlias
+    FlowAlias,
 )
 from fondat.pagination import Cursor, Page
 from ..decorators import operation
@@ -148,7 +148,7 @@ class GenericVersionResource:
         # Don't cache if pagination is being used
         if cursor is not None:
             return await self._list_versions(max_results=max_results, cursor=cursor)
-            
+
         # Use cache for first page results
         cache_key = f"{self.id_field}_{self._parent_id}_versions_{max_results}"
         return await self._cache.get_cached_page(
@@ -157,7 +157,6 @@ class GenericVersionResource:
             fetch_func=self._list_versions,
             max_results=max_results,
         )
-
 
     def __getitem__(self, version: str) -> "VersionResource[VT]":
         """Get a specific version resource.
@@ -241,7 +240,7 @@ class VersionResource(Generic[VT]):
             "status",
             "definition",
             "updated_at",
-        ]
+        ],
     }
 
     def __init__(
@@ -285,9 +284,7 @@ class VersionResource(Generic[VT]):
         print(f"\nRequired fields: {required}")
         missing = set(required) - mapped.keys()
         if missing:
-            raise ValueError(
-                f"Missing required fields for {self.id_field}: {sorted(missing)}"
-            )
+            raise ValueError(f"Missing required fields for {self.id_field}: {sorted(missing)}")
 
         # Convert all keys to snake_case
         return convert_dict_keys_to_snake_case(mapped)
@@ -310,6 +307,7 @@ class VersionResource(Generic[VT]):
             mapped = self._map_response_fields(data)
             print(f"\nAfter mapping: {mapped}")
             return self._dto_type(**mapped)
+
 
 @resource
 class GenericAliasResource:
@@ -446,7 +444,7 @@ class GenericAliasResource:
         # Don't cache if pagination is being used
         if cursor is not None:
             return await self._list_aliases(max_results=max_results, cursor=cursor)
-            
+
         # Use cache for first page results
         cache_key = f"{self.id_field}_{self._parent_id}_aliases_{max_results}"
         return await self._cache.get_cached_page(
@@ -480,7 +478,15 @@ class GenericAliasResource:
 class AliasResource(Generic[AT]):
     """Resource for managing a specific alias."""
 
-    __slots__ = ("_parent_id", "_alias_id", "id_field", "get_method", "config", "policies", "_dto_type")
+    __slots__ = (
+        "_parent_id",
+        "_alias_id",
+        "id_field",
+        "get_method",
+        "config",
+        "policies",
+        "_dto_type",
+    )
 
     # ---------------------------------------
     # Class-level mappings and required fields
@@ -554,18 +560,14 @@ class AliasResource(Generic[AT]):
         mapping = self._get_field_mappings()
         # map only present fields (dest_field ← response_data[src_field])
         mapped = {
-            dest: response_data[src]
-            for dest, src in mapping.items()
-            if src in response_data
+            dest: response_data[src] for dest, src in mapping.items() if src in response_data
         }
 
         # validate that *destination* keys are all present
         required = self._get_required_fields()
         missing = set(required) - mapped.keys()
         if missing:
-            raise ValueError(
-                f"Missing required fields for {self.id_field}: {sorted(missing)}"
-            )
+            raise ValueError(f"Missing required fields for {self.id_field}: {sorted(missing)}")
 
         # Convert all keys to snake_case
         return convert_dict_keys_to_snake_case(mapped)
@@ -577,7 +579,7 @@ class AliasResource(Generic[AT]):
             "agentId": "agentAliasId",
             "flowIdentifier": "aliasIdentifier",
         }[self.id_field]
-            
+
         params = {self.id_field: self._parent_id, key_for_alias: self._alias_id}
         async with agent_client(self.config) as client:
             response = await getattr(client, self.get_method)(**params)

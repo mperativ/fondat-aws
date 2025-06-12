@@ -43,6 +43,22 @@ class AgentResource:
         self.config_runtime = config_runtime
         self.policies = policies
 
+    def _process_agent_response(self, response: dict) -> dict:
+        """Process agent response from client.
+        """
+        data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
+        if "agent" not in data:
+            raise ValueError("Missing 'agent' in response")
+        data.update(data.pop("agent"))
+        
+        required_fields = ["agentId", "agentName", "agentStatus"]
+        for field in required_fields:
+            if field not in data:
+                raise ValueError(f"Missing required field '{field}' in agent data")
+        
+        data["_factory"] = lambda: self
+        return convert_dict_keys_to_snake_case(data)
+
     @operation(method="get", policies=lambda self: self.policies)
     async def get(self) -> Agent:
         """
@@ -54,12 +70,7 @@ class AgentResource:
         async with agent_client(self.config_agent) as client:
             with wrap_client_error():
                 response = await client.get_agent(agentId=self._id)
-                data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
-                if "agent" in data:
-                    data.update(data.pop("agent"))
-                data["_factory"] = lambda: self
-                # Convert all keys to snake_case before instantiating Agent
-                data = convert_dict_keys_to_snake_case(data)
+                data = self._process_agent_response(response)
                 return Agent(**data)
 
     @operation(method="post", policies=lambda self: self.policies)
@@ -104,7 +115,7 @@ class AgentResource:
             "agentId": self._id,
             "inputText": inputText,
             "sessionId": sessionId,
-            "agentAliasId": agentAliasId
+            "agentAliasId": agentAliasId,
         }
         if enableTrace:
             params["enableTrace"] = True
@@ -123,7 +134,7 @@ class AgentResource:
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
                 response = await client.invoke_agent(**params)
-                # Convert all keys to snake_case before instantiating AgentInvocation
+                data["_factory"] = lambda: self
                 data = convert_dict_keys_to_snake_case(response)
                 return AgentInvocation(**data)
 

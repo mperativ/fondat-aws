@@ -1,18 +1,19 @@
-from datetime import datetime
 import json
 import pytest
+from datetime import datetime
 
 from fondat.aws.bedrock import prompts_resource
 from fondat.aws.bedrock.domain import Prompt, PromptSummary
 from fondat.aws.bedrock.resources.prompts import PromptResource
-from fondat.aws.client import Config
 from tests.bedrock.integration.conftest import my_vcr, aws_session
+
 
 class DateTimeEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
             return obj.isoformat()
         return super().default(obj)
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_integration_list_prompts.yaml")
@@ -27,6 +28,7 @@ async def test_integration_list_prompts(aws_session):
     assert page.items[0].created_at is not None
     assert page.items[0].description is not None
     assert page.items[0]._factory is not None
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_integration_get_prompt.yaml")

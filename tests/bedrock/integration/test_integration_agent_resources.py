@@ -5,6 +5,7 @@ from fondat.aws.bedrock import agents_resource
 
 logger = logging.getLogger(__name__)
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_agents.yaml")
 async def test_list_agents_playback(aws_session):
@@ -15,6 +16,7 @@ async def test_list_agents_playback(aws_session):
     assert page.items is not None
     assert hasattr(page.items[0], "agent_id")
     assert hasattr(page.items[0], "agent_name")
+
 
 @pytest.mark.live_only
 @pytest.mark.asyncio
@@ -27,6 +29,7 @@ async def test_list_agents_live(aws_session):
     assert page.items[0].agent_id is not None
     assert page.items[0].agent_name is not None
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_agent.yaml")
 async def test_get_agent_playback(aws_session):
@@ -38,6 +41,7 @@ async def test_get_agent_playback(aws_session):
     agent = await resource[aid].get()
     assert agent.agent_id == aid
 
+
 @pytest.mark.live_only
 @pytest.mark.asyncio
 async def test_get_agent_live(aws_session):
@@ -48,6 +52,7 @@ async def test_get_agent_live(aws_session):
     aid = page.items[0].agent_id
     agent = await resource[aid].get()
     assert agent.agent_id == aid and aid is not None
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_versions.yaml")
@@ -61,6 +66,7 @@ async def test_list_versions_playback(aws_session):
     assert versions.items is not None
     assert hasattr(versions.items[0], "version_id")
     assert hasattr(versions.items[0], "version_name")
+
 
 @pytest.mark.live_only
 @pytest.mark.asyncio
@@ -76,6 +82,7 @@ async def test_list_versions_live(aws_session):
         assert versions.items[0].version_id is not None
     logger.info(f"Listed {len(versions.items)} versions live")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_aliases.yaml")
 async def test_list_aliases_playback(aws_session):
@@ -88,6 +95,7 @@ async def test_list_aliases_playback(aws_session):
     assert aliases.items is not None
     assert hasattr(aliases.items[0], "alias_id")
     assert hasattr(aliases.items[0], "alias_name")
+
 
 @pytest.mark.live_only
 @pytest.mark.asyncio
@@ -102,6 +110,7 @@ async def test_list_aliases_live(aws_session):
     assert hasattr(aliases.items[0], "alias_id")
     assert hasattr(aliases.items[0], "alias_name")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_action_groups.yaml")
 async def test_list_action_groups_playback(aws_session):
@@ -114,6 +123,7 @@ async def test_list_action_groups_playback(aws_session):
     assert ag.items is not None
     assert hasattr(ag.items[0], "action_group_id")
     assert hasattr(ag.items[0], "action_group_name")
+
 
 @pytest.mark.live_only
 @pytest.mark.asyncio
@@ -129,6 +139,7 @@ async def test_list_action_groups_live(aws_session):
         assert ag.items[0].action_group_id is not None
     logger.info(f"Listed {len(ag.items)} action groups live")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_collaborators.yaml")
 async def test_list_collaborators_playback(aws_session):
@@ -142,6 +153,7 @@ async def test_list_collaborators_playback(aws_session):
     if coll.items:
         assert hasattr(coll.items[0], "collaborator_id")
         assert hasattr(coll.items[0], "collaborator_name")
+
 
 @pytest.mark.live_only
 @pytest.mark.asyncio

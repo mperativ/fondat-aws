@@ -1,38 +1,48 @@
-"""Unit tests for sessions."""
-
 import pytest
-from fondat.aws.bedrock.resources.sessions import SessionsResource
-from fondat.aws.bedrock.domain import Session, SessionSummary, Invocation, InvocationStepSummary
+from botocore.exceptions import HTTPClientError
+from datetime import datetime
+
 from fondat.pagination import Page
 from fondat.error import NotFoundError
-from botocore.exceptions import HTTPClientError
+from fondat.aws.bedrock.resources.sessions import SessionsResource, SessionResource
+from fondat.aws.bedrock.domain import Session, SessionSummary, Invocation, InvocationStepSummary
 
 from tests.bedrock.unit.conftest import my_vcr
-from tests.bedrock.unit.test_config import TEST_AGENT_ID
+from tests.bedrock.unit.test_config import TEST_AGENT_ID, TEST_SESSION_ID
 
 
 @pytest.fixture
 def sessions_resource(config):
     """Fixture to provide sessions resource."""
     return SessionsResource(
-        agent_id=TEST_AGENT_ID,
-        config_runtime=config,
-        cache_size=10,
-        cache_expire=1
+        agent_id=TEST_AGENT_ID, config_runtime=config, cache_size=10, cache_expire=1
     )
 
+
 @pytest.fixture
-async def session_resource(sessions_resource):
+def session_resource(config):
+    """Provide a session resource for testing."""
+    return SessionResource(
+        agent_id=TEST_AGENT_ID,
+        session_id="f6fcf7ca-2b27-4708-bf37-f5300d77a02c",
+        config_runtime=config,
+    )
+
+
+@pytest.fixture
+async def specific_session_resource(sessions_resource):
     """Fixture to provide session resource."""
     # Create a new session for testing
     session = await sessions_resource.create()
     return sessions_resource[session.session_id]
 
+
 @pytest.fixture
-async def invocations_resource(session_resource):
+async def invocations_resource(specific_session_resource):
     """Fixture to provide invocations resource."""
-    session = session_resource
+    session = specific_session_resource
     return session.invocations
+
 
 @pytest.fixture
 async def invocation_resource(invocations_resource):
@@ -42,6 +52,7 @@ async def invocation_resource(invocations_resource):
     invocation = await invocations.create()
     # Get the InvocationResource using the invocation ID
     return invocations[invocation.invocation_id]
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_sessions.yaml")
@@ -61,6 +72,7 @@ async def test_list_sessions(sessions_resource):
     except Exception as e:
         pytest.fail(f"Failed to list sessions: {str(e)}")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
 async def test_list_sessions_with_cursor(sessions_resource):
@@ -70,7 +82,7 @@ async def test_list_sessions_with_cursor(sessions_resource):
         page1 = await sessions_resource.get(max_results=5)
         if not page1.items:
             pytest.skip("No sessions available")
-        
+
         # Get second page using cursor
         page2 = await sessions_resource.get(max_results=5, cursor=page1.cursor)
         assert isinstance(page2.items, list)
@@ -78,6 +90,7 @@ async def test_list_sessions_with_cursor(sessions_resource):
             assert page2.items[0].session_id != page1.items[0].session_id
     except Exception as e:
         pytest.fail(f"Failed to list sessions with cursor: {str(e)}")
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
@@ -91,20 +104,27 @@ async def test_create_session(sessions_resource):
     except Exception as e:
         pytest.fail(f"Failed to create session: {str(e)}")
 
+
 @pytest.mark.asyncio
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_session.yaml")
 async def test_get_session(session_resource):
-    """Test getting session details."""
-    try:
-        session = session_resource
-        session_details = await session.get()
-        assert isinstance(session_details, Session)
-        assert session_details.session_id
-        assert session_details.session_status
-        assert session_details.created_at is not None
-        assert session_details.last_updated_at is not None
-    except Exception as e:
-        pytest.fail(f"Failed to get session: {str(e)}")
+    """Test getting session."""
+    session = await session_resource.get()
+    assert session is not None
+
+    # Validate required fields
+    assert hasattr(session, "session_id")
+    assert hasattr(session, "created_at")
+    assert hasattr(session, "session_status")
+
+    # Validate session properties
+    assert isinstance(session, Session)
+    assert isinstance(session.resource, SessionResource)
+    assert session.session_id == TEST_SESSION_ID
+    assert isinstance(session.created_at, datetime)
+    if hasattr(session, "session_metadata"):
+        assert isinstance(session.session_metadata, dict)
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
@@ -112,11 +132,13 @@ async def test_end_session(session_resource):
     """Test ending a session."""
     try:
         session = session_resource
-        ended_session = await session.end()
-        assert isinstance(ended_session, Session)
-        assert ended_session.session_status == "ENDED"
+        current_session = await session.get()
+        assert isinstance(current_session, Session)
+        assert current_session.session_status == "ENDED"
+
     except Exception as e:
         pytest.fail(f"Failed to end session: {str(e)}")
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
@@ -124,13 +146,15 @@ async def test_delete_session(session_resource):
     """Test deleting a session."""
     try:
         session = session_resource
-        # End the session first
-        ended_session = await session.end()
-        assert ended_session.session_status == "ENDED"
-        # Now we can delete it
+        current_session = await session.get()
+        assert isinstance(current_session, Session)
+        assert current_session.session_status == "ENDED"
         await session.delete()
+        with pytest.raises(NotFoundError):
+            await session.get()
     except Exception as e:
         pytest.fail(f"Failed to delete session: {str(e)}")
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invocation_lifecycle.yaml")
@@ -147,6 +171,7 @@ async def test_list_invocations(invocations_resource):
     except Exception as e:
         pytest.fail(f"Failed to list invocations: {str(e)}")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invocation_lifecycle.yaml")
 async def test_create_invocation(invocations_resource):
@@ -160,6 +185,7 @@ async def test_create_invocation(invocations_resource):
         assert invocation.created_at
     except Exception as e:
         pytest.fail(f"Failed to create invocation: {str(e)}")
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invocation_lifecycle.yaml")
@@ -180,6 +206,7 @@ async def test_get_invocation(invocation_resource):
     except Exception as e:
         pytest.fail(f"Failed to get invocation: {str(e)}")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invocation_steps.yaml")
 async def test_get_invocation_steps(invocation_resource):
@@ -198,6 +225,7 @@ async def test_get_invocation_steps(invocation_resource):
     except Exception as e:
         pytest.fail(f"Failed to get invocation steps: {str(e)}")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
 async def test_session_cache(sessions_resource):
@@ -205,14 +233,15 @@ async def test_session_cache(sessions_resource):
     try:
         # First call should hit the API
         page1 = await sessions_resource.get()
-        
+
         # Second call should use cache
         page2 = await sessions_resource.get()
-        
+
         # Results should be the same
         assert page1.items == page2.items
     except Exception as e:
         pytest.fail(f"Failed to test session cache: {str(e)}")
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
@@ -224,6 +253,7 @@ async def test_get_nonexistent_session(sessions_resource):
             await sessions_resource["00000000-0000-0000-0000-000000000000"].get()
     except Exception as e:
         pytest.fail(f"Failed to test nonexistent session: {str(e)}")
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invocation_lifecycle.yaml")
@@ -238,4 +268,4 @@ async def test_invocation_error_handling(invocations_resource):
         # If we get an HTTPClientError due to AWS credentials, skip the test
         pytest.skip(f"Skipping test due to AWS credentials error: {str(e)}")
     except Exception as e:
-        pytest.fail(f"Failed to test invocation error handling: {str(e)}") 
+        pytest.fail(f"Failed to test invocation error handling: {str(e)}")

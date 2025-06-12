@@ -1,27 +1,25 @@
-"""Unit tests for flows."""
-
 import pytest
-from fondat.aws.bedrock.resources.flows import FlowsResource
+from datetime import datetime
 from fondat.aws.bedrock.domain import Flow, FlowSummary
-from fondat.pagination import Page
 from fondat.error import NotFoundError, ForbiddenError
+from fondat.aws.bedrock.resources.flows import FlowsResource, FlowResource
 from tests.bedrock.unit.conftest import my_vcr
 from tests.bedrock.unit.test_config import TEST_FLOW_ID
+
 
 @pytest.fixture
 def flows_resource(config):
     """Fixture to provide flows resource."""
     return FlowsResource(
-        config_agent=config,
-        config_runtime=config,
-        cache_size=10,
-        cache_expire=1
+        config_agent=config, config_runtime=config, cache_size=10, cache_expire=1
     )
+
 
 @pytest.fixture
 def flow_resource(flows_resource):
     """Fixture to provide a specific flow resource."""
     return flows_resource[TEST_FLOW_ID]
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_flows.yaml")
@@ -38,6 +36,7 @@ async def test_list_flows(flows_resource):
     except Exception as e:
         pytest.fail(f"Failed to list flows: {str(e)}")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_flows.yaml")
 async def test_list_flows_with_cursor(flows_resource):
@@ -53,19 +52,29 @@ async def test_list_flows_with_cursor(flows_resource):
     except Exception as e:
         pytest.fail(f"Failed to list flows with cursor: {str(e)}")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_flow.yaml")
 async def test_get_flow(flow_resource):
-    """Test getting flow details."""
-    try:
-        flow = await flow_resource.get()
-        assert isinstance(flow, Flow)
-        assert flow.flow_id == TEST_FLOW_ID
-        assert flow.flow_name
-        assert hasattr(flow, 'status')
-        assert hasattr(flow, 'created_at')
-    except Exception as e:
-        pytest.fail(f"Failed to get flow: {str(e)}")
+    """Test getting flow."""
+    flow = await flow_resource.get()
+    assert flow is not None
+
+    # Validate required fields
+    assert hasattr(flow, "flow_id")
+    assert hasattr(flow, "flow_name")
+    assert hasattr(flow, "status")
+    assert hasattr(flow, "created_at")
+    assert hasattr(flow, "updated_at")
+
+    # Validate flow properties
+    assert isinstance(flow.created_at, datetime)
+    assert isinstance(flow.updated_at, datetime)
+    assert hasattr(flow, "definition")
+    assert hasattr(flow, "version")
+    assert isinstance(flow, Flow)
+    assert isinstance(flow.resource, FlowResource)
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_flow_properties.yaml")
@@ -81,6 +90,7 @@ async def test_flow_properties(flow_resource):
     except Exception as e:
         pytest.fail(f"Failed to test flow properties: {str(e)}")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_nonexistent_flow.yaml")
 async def test_get_nonexistent_flow(flows_resource):
@@ -91,6 +101,7 @@ async def test_get_nonexistent_flow(flows_resource):
     except Exception as e:
         pytest.fail(f"Failed to test nonexistent flow: {str(e)}")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_flow_cache.yaml")
 async def test_flow_cache(flows_resource):
@@ -100,4 +111,4 @@ async def test_flow_cache(flows_resource):
         page2 = await flows_resource.get()
         assert page1.items == page2.items
     except Exception as e:
-        pytest.fail(f"Failed to test flow cache: {str(e)}") 
+        pytest.fail(f"Failed to test flow cache: {str(e)}")

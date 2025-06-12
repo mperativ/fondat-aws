@@ -41,7 +41,11 @@ if TYPE_CHECKING:
     from fondat.aws.bedrock.resources.generic_resources import AliasResource, VersionResource
     from fondat.aws.bedrock.resources.memory import MemoryResource
     from fondat.aws.bedrock.resources.prompts import PromptResource
-    from fondat.aws.bedrock.resources.sessions import InvocationResource, SessionResource, StepResource
+    from fondat.aws.bedrock.resources.sessions import (
+        InvocationResource,
+        SessionResource,
+        StepResource,
+    )
 
 T = TypeVar("T")
 
@@ -95,7 +99,10 @@ class Agent(_HasResource["AgentResource"]):  # noqa: D101
     prompt_override_configuration: Optional[Dict[str, Any]] = None
     recommended_actions: List[str] = field(default_factory=list)
     updated_at: Optional[datetime] = None
-    _factory: Optional[Callable[[], "AgentResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "AgentResource"]] = field(
+        default=None, repr=False, compare=False
+    )
+
 
 @dataclass
 class AgentSummary(_HasResource["AgentResource"]):
@@ -106,7 +113,9 @@ class AgentSummary(_HasResource["AgentResource"]):
     status: str
     last_updated_at: Optional[datetime] = None
     prepared_at: Optional[datetime] = None
-    _factory: Optional[Callable[[], "AgentResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "AgentResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 # -- Agent Versions ---------------------------------------------------------
@@ -187,7 +196,9 @@ class AgentCollaboratorSummary(_HasResource["CollaboratorResource"]):
     created_at: datetime
     status: Optional[str] = None
     invitation_id: Optional[str] = None
-    _factory: Optional[Callable[[], "CollaboratorResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "CollaboratorResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 # -- Agent Invocation -------------------------------------------------------
@@ -199,6 +210,9 @@ class AgentInvocation:  # noqa: D101
     content_type: Optional[str] = None
     memory_id: Optional[str] = None
     session_id: Optional[str] = None
+    _factory: Optional[Callable[[], "InvocationResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 # ===========================================================================
@@ -220,7 +234,9 @@ class Flow(_HasResource["FlowResource"]):  # noqa: D101
     description: Optional[str] = None
     execution_role_arn: Optional[str] = None
     validations: List[Dict[str, Any]] = field(default_factory=list)
-    _factory: Optional[Callable[[], "FlowResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "FlowResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 @dataclass
@@ -230,7 +246,9 @@ class FlowSummary(_HasResource["FlowResource"]):
     status: str
     created_at: datetime
     description: Optional[str] = None
-    _factory: Optional[Callable[[], "FlowResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "FlowResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 # -- Flow Versions & Aliases ------------------------------------------------
@@ -293,7 +311,9 @@ class Prompt(_HasResource["PromptResource"]):  # noqa: D101
     customer_encryption_key_arn: Optional[str] = None
     default_variant: Optional[str] = None
     description: Optional[str] = None
-    _factory: Optional[Callable[[], "PromptResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "PromptResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 @dataclass
@@ -302,7 +322,9 @@ class PromptSummary(_HasResource["PromptResource"]):
     name: str
     created_at: datetime
     description: Optional[str] = None
-    _factory: Optional[Callable[[], "PromptResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "PromptResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 @dataclass
@@ -328,7 +350,7 @@ class PromptVersion:  # noqa: D101
 
 
 @dataclass
-class Session:  # noqa: D101
+class Session(_HasResource["SessionResource"]):  # noqa: D101
     session_id: str
     session_arn: str
     session_status: str
@@ -337,6 +359,9 @@ class Session:  # noqa: D101
     encryption_key_arn: Optional[str] = None
     session_metadata: Dict[str, str] = field(default_factory=dict)
     response_metadata: Optional[Dict[str, Any]] = None
+    _factory: Optional[Callable[[], "SessionResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 @dataclass
@@ -346,7 +371,9 @@ class SessionSummary(_HasResource["SessionResource"]):
     session_id: str
     session_start_time: datetime
     summary_text: str
-    _factory: Optional[Callable[[], "SessionResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "SessionResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 # -- Memory readout ---------------------------------------------------------
@@ -355,20 +382,24 @@ class SessionSummary(_HasResource["SessionResource"]):
 @dataclass
 class MemoryContent(_HasResource["SessionResource"]):
     session_summary: SessionSummary
-    _factory: Optional[Callable[[], "SessionResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "SessionResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 @dataclass
 class MemoryContents(_HasResource["SessionResource"]):
     memory_contents: List[MemoryContent]
     next_token: Optional[str] = None
-    _factory: Optional[Callable[[], "SessionResource"]] = field(default=None, repr=False, compare=False)
-
+    _factory: Optional[Callable[[], "SessionResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 @dataclass
 class MemorySession(_HasResource["MemoryResource"]):
     """Memory session details."""
+
     memory_id: str
     memory_arn: str
     memory_name: str
@@ -376,7 +407,9 @@ class MemorySession(_HasResource["MemoryResource"]):
     updated_at: Optional[datetime] = None
     description: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
-    _factory: Optional[Callable[[], "MemoryResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "MemoryResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 # ===========================================================================
@@ -398,7 +431,9 @@ class InvocationSummary(_HasResource["InvocationResource"]):
     session_id: str
     status: str
     input_text: Optional[str] = None
-    _factory: Optional[Callable[[], "InvocationResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "InvocationResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 @dataclass
@@ -419,7 +454,9 @@ class InvocationStepSummary(_HasResource["StepResource"]):  # noqa: D101
     created_at: datetime
     ended_at: Optional[datetime] = None
     payload: Dict[str, Any] = field(default_factory=dict)
-    _factory: Optional[Callable[[], "StepResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "StepResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 # ===========================================================================
@@ -466,7 +503,7 @@ class FunctionSchema:  # noqa: D101
 
 
 @dataclass
-class ActionGroup:  # noqa: D101
+class ActionGroup(_HasResource["ActionGroupResource"]):  # noqa: D101
     action_group_id: str
     action_group_name: str
     action_group_state: Literal["ENABLED", "DISABLED"]
@@ -489,6 +526,9 @@ class ActionGroup:  # noqa: D101
             "ANTHROPIC.TextEditor",
         ]
     ] = None
+    _factory: Optional[Callable[[], "ActionGroupResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 @dataclass
@@ -498,7 +538,9 @@ class ActionGroupSummary(_HasResource["ActionGroupResource"]):
     description: Optional[str] = None
     schema_arn: Optional[str] = None
     executor_arn: Optional[str] = None
-    _factory: Optional[Callable[[], "ActionGroupResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "ActionGroupResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 # ===========================================================================
@@ -540,7 +582,9 @@ class VersionSummary(_HasResource["VersionResource"]):
     version_name: str
     created_at: datetime
     description: Optional[str] = None
-    _factory: Optional[Callable[[], "VersionResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "VersionResource"]] = field(
+        default=None, repr=False, compare=False
+    )
 
 
 @dataclass
@@ -549,4 +593,6 @@ class AliasSummary(_HasResource["AliasResource"]):
     alias_name: str
     created_at: datetime
     metadata: Optional[str] = None
-    _factory: Optional[Callable[[], "AliasResource"]] = field(default=None, repr=False, compare=False)
+    _factory: Optional[Callable[[], "AliasResource"]] = field(
+        default=None, repr=False, compare=False
+    )

@@ -23,9 +23,14 @@ def operation(
     Returns:
         A decorator function that adds the operation metadata
     """
+
     def decorator(func: T) -> T:
         def wrapper(self: Any, *args: Any, **kwargs: Any) -> T:
             actual_policies = policies(self) if callable(policies) else policies
-            return _operation(method=method, policies=actual_policies)(func)(self, *args, **kwargs)
+            return _operation(method=method, policies=actual_policies)(func)(
+                self, *args, **kwargs
+            )
+
         return wrapper
+
     return decorator

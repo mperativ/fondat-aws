@@ -1,11 +1,9 @@
-"""Common fixtures for bedrock tests."""
-
-from pathlib import Path
 import os
 import boto3
 import aiobotocore.session
 import pytest
 from contextlib import asynccontextmanager
+
 
 class AsyncClientWrapper:
     def __init__(self, client):
@@ -14,10 +12,13 @@ class AsyncClientWrapper:
     def __getattr__(self, name):
         attr = getattr(self._client, name)
         if callable(attr):
+
             async def _async(*a, **kw):
                 return attr(*a, **kw)
+
             return _async
         return attr
+
 
 @pytest.fixture(autouse=True)
 def patch_aiobotocore_to_boto3(monkeypatch):
@@ -37,4 +38,4 @@ def patch_aiobotocore_to_boto3(monkeypatch):
         aiobotocore.session.AioSession,
         "create_client",
         create_sync_client,
-    ) 
+    )

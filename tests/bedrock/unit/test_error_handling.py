@@ -1,5 +1,3 @@
-"""Tests for error handling in Bedrock resources."""
-
 import pytest
 import botocore.exceptions
 import fondat.error
@@ -86,11 +84,11 @@ async def test_wrap_client_error_preserves_original():
         },
         operation_name="TestOperation",
     )
-    
+
     with pytest.raises(fondat.error.BadRequestError) as exc_info:
         with wrap_client_error():
             raise original_error
-    
+
     assert exc_info.value.__cause__ is original_error
 
 

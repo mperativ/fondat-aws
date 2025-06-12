@@ -92,7 +92,7 @@ class FlowsResource:
         # Don't cache if pagination is being used
         if cursor is not None:
             return await self._list_flows(max_results=max_results, cursor=cursor)
-            
+
         # Use cache for first page results
         cache_key = f"flows_list_{max_results}"
         return await self._cache.get_cached_page(
@@ -235,19 +235,14 @@ class FlowResource:
         Returns:
             FlowInvocation: Information about the flow invocation
         """
-        str_content = input_content if isinstance(input_content, str) else json.dumps(input_content)
+        str_content = (
+            input_content if isinstance(input_content, str) else json.dumps(input_content)
+        )
 
         params = {
             "flowIdentifier": self._flow_id,
             "flowAliasIdentifier": flowAliasIdentifier,
-            "inputs": [
-                {
-                    "nodeName": nodeName,
-                    "content": {
-                        "document": str_content
-                    }
-                }
-            ],
+            "inputs": [{"nodeName": nodeName, "content": {"document": str_content}}],
             "enableTrace": enableTrace,
         }
         if nodeInputName is not None:

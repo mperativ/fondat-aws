@@ -81,7 +81,7 @@ class PromptsResource:
         # Don't cache if pagination is being used
         if cursor is not None:
             return await self._list_prompts(max_results=max_results, cursor=cursor)
-            
+
         # Use cache for first page results
         cache_key = f"prompts_list_{max_results}"
         return await self._cache.get_cached_page(
@@ -149,7 +149,7 @@ class PromptResource:
                 # Map camelCase fields to snake_case
                 prompt_data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
                 prompt_data = convert_dict_keys_to_snake_case(prompt_data)
-                prompt_data['_factory'] = lambda self=self: self
+                prompt_data["_factory"] = lambda self=self: self
                 return Prompt(**prompt_data)
 
     @property

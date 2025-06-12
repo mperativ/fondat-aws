@@ -1,33 +1,39 @@
-# tests/bedrock/integration/conftest.py
-from asyncio.log import logger
 import os
-from pathlib import Path
 import asyncio
-from collections import namedtuple
 import logging
-from unittest.mock import AsyncMock, MagicMock
 import boto3
-import aiobotocore.session
 import pytest
 import vcr
+import aiobotocore.session
+from asyncio.log import logger
+from pathlib import Path
+from collections import namedtuple
 from contextlib import asynccontextmanager
 
 from fondat.aws.client import Config
 from fondat.aws.bedrock import agents_resource, prompts_resource, flows_resource
 
+
 class AsyncClientWrapper:
-    def __init__(self, client): self._client = client
+    def __init__(self, client):
+        self._client = client
+
     def __getattr__(self, name):
         attr = getattr(self._client, name)
         if callable(attr):
-            async def method(*a, **kw): return attr(*a, **kw)
+
+            async def method(*a, **kw):
+                return attr(*a, **kw)
+
             return method
         return attr
+
 
 @pytest.fixture(autouse=True)
 def patch_aiobotocore_to_boto3(monkeypatch):
     if os.environ.get("LIVE", "") == "1":
         return
+
     @asynccontextmanager
     async def create_sync_client(self, service_name, **kwargs):
         boto_sess = boto3.Session(
@@ -41,18 +47,21 @@ def patch_aiobotocore_to_boto3(monkeypatch):
             yield AsyncClientWrapper(sync_client)
         finally:
             pass
+
     monkeypatch.setattr(
         aiobotocore.session.AioSession,
         "create_client",
         create_sync_client,
     )
 
+
 def pytest_collection_modifyitems(items):
     """Automatically apply VCR to all tests unless marked with @pytest.mark.no_vcr"""
     for item in items:
-        if not any(marker.name == 'vcr' for marker in item.iter_markers()):
-            if not any(marker.name == 'no_vcr' for marker in item.iter_markers()):
+        if not any(marker.name == "vcr" for marker in item.iter_markers()):
+            if not any(marker.name == "no_vcr" for marker in item.iter_markers()):
                 item.add_marker(pytest.mark.vcr(vcr=my_vcr))
+
 
 # Configure VCR
 CASSETTE_DIR = Path(__file__).parent / "cassettes" / "bedrock"
@@ -60,21 +69,21 @@ CASSETTE_DIR.mkdir(parents=True, exist_ok=True)
 
 my_vcr = vcr.VCR(
     cassette_library_dir=str(CASSETTE_DIR),
-    record_mode='once',  # Record once, then playback
-    match_on=['method', 'scheme', 'host', 'port', 'path', 'query', 'body'],
-    serializer='yaml',
+    record_mode="once",  # Record once, then playback
+    match_on=["method", "scheme", "host", "port", "path", "query", "body"],
+    serializer="yaml",
     filter_headers=[
-        ('authorization', 'DUMMY'),
-        ('x-amz-security-token', 'DUMMY'),
-        ('x-amz-date', 'DUMMY'),
-        ('x-amz-content-sha256', 'DUMMY'),
+        ("authorization", "DUMMY"),
+        ("x-amz-security-token", "DUMMY"),
+        ("x-amz-date", "DUMMY"),
+        ("x-amz-content-sha256", "DUMMY"),
     ],
     filter_query_parameters=[
-        ('X-Amz-Security-Token', 'DUMMY'),
-        ('X-Amz-Date', 'DUMMY'),
-        ('X-Amz-Credential', 'DUMMY'),
-        ('X-Amz-SignedHeaders', 'DUMMY'),
-        ('X-Amz-Signature', 'DUMMY'),
+        ("X-Amz-Security-Token", "DUMMY"),
+        ("X-Amz-Date", "DUMMY"),
+        ("X-Amz-Credential", "DUMMY"),
+        ("X-Amz-SignedHeaders", "DUMMY"),
+        ("X-Amz-Signature", "DUMMY"),
     ],
 )
 
@@ -84,11 +93,13 @@ AwsCtx = namedtuple("AwsCtx", "config_agent config_runtime agents prompts")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+
 def mask_id(id_str):
     """Mask sensitive identifiers with asterisks."""
     if not id_str:
         return "****"
     return "*" * len(id_str)
+
 
 @pytest.fixture(scope="function")
 async def aws_session(request, event_loop) -> AwsCtx:
@@ -123,22 +134,27 @@ async def aws_session(request, event_loop) -> AwsCtx:
     finally:
         boto3.Session = orig_Session
 
+
 @pytest.fixture(scope="session")
 def cfg():
     # Assumes AWS_PROFILE and SSO already configured
     return Config(region_name="us-east-2")
 
+
 @pytest.fixture(scope="session")
 def root(cfg):
     return agents_resource(config_agent=cfg, config_runtime=cfg)
+
 
 @pytest.fixture(scope="session")
 def prompts(cfg):
     return prompts_resource(config_agent=cfg)
 
+
 @pytest.fixture(scope="session")
 def agents(root):
     return root
+
 
 @pytest.fixture(scope="session")
 def agent(root):
@@ -149,6 +165,7 @@ def agent(root):
     logger.info(f"Using agent {mask_id(agent_id)}")
     return root[agent_id]
 
+
 @pytest.fixture(scope="session")
 def agent_version(agent):
     """Get the first version of the agent."""
@@ -157,6 +174,7 @@ def agent_version(agent):
     version = versions.items[0].version_id
     logger.info(f"Using agent version {mask_id(version)}")
     return version
+
 
 @pytest.fixture(scope="session")
 def agent_alias(agent):
@@ -167,10 +185,13 @@ def agent_alias(agent):
     logger.info(f"Using agent alias {mask_id(alias)}")
     return alias
 
+
 @pytest.fixture(scope="session")
 def prepared_flow(aws_session):
     """Get a tuple of (flow_id, alias_id) for a prepared/active flow with a valid alias."""
-    flows = flows_resource(config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime)
+    flows = flows_resource(
+        config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime
+    )
     page = asyncio.run(flows.get(max_results=10))
     assert page.items, "No flows found"
     flow = page.items[0]
@@ -180,6 +201,7 @@ def prepared_flow(aws_session):
     alias = aliases.items[0]
     logger.info(f"Using alias: {mask_id(alias.alias_id)}")
     return (flow.flow_id, alias.alias_id)
+
 
 @pytest.fixture
 async def session(agent):

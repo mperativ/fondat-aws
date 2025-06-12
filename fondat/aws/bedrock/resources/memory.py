@@ -8,7 +8,6 @@ from fondat.aws.client import Config, wrap_client_error
 from fondat.resource import resource
 from fondat.security import Policy
 from fondat.aws.bedrock.domain import MemoryContent, MemoryContents, SessionSummary
-from fondat.pagination import Page
 from fondat.error import NotFoundError, ForbiddenError
 
 from ..clients import runtime_client
@@ -91,7 +90,7 @@ class MemoryResource:
         """
         if not self._memory_id:
             raise ValueError("Memory ID is required for get operation")
-            
+
         params = {
             "agentId": self._agent_id,
             "agentAliasId": agentAliasId,
@@ -115,32 +114,27 @@ class MemoryResource:
                     if isinstance(e, (NotFoundError, ForbiddenError)):
                         raise
                     raise e
-                    
+
                 # Convert memory contents
                 memory_contents = []
                 for content in response.get("memoryContents", []):
-                    session_summary = content["sessionSummary"]
+                    if "sessionSummary" not in content:
+                        raise ValueError("Missing 'sessionSummary' in memory content")
+                    session_summary = convert_dict_keys_to_snake_case(content["sessionSummary"])
                     memory_contents.append(
                         MemoryContent(
-                            session_summary=SessionSummary(
-                                memory_id=session_summary["memoryId"],
-                                session_expiry_time=session_summary["sessionExpiryTime"],
-                                session_id=session_summary["sessionId"],
-                                session_start_time=session_summary["sessionStartTime"],
-                                summary_text=session_summary["summaryText"]
-                            )
+                            session_summary=SessionSummary(**session_summary)
                         )
                     )
-                
+
                 return MemoryContents(
                     memory_contents=memory_contents,
-                    next_token=response.get("nextToken")
+                    next_token=response.get("nextToken"),
+                    _factory=lambda self=self: self
                 )
 
         return await self._cache.get_cached_list(
-            cache_key=cache_key,
-            item_type=MemoryContents,
-            fetch_func=fetch_memory
+            cache_key=cache_key, item_type=MemoryContents, fetch_func=fetch_memory
         )
 
     @operation(method="delete", policies=lambda self: self.policies)
@@ -158,7 +152,7 @@ class MemoryResource:
         """
         if not self._memory_id:
             raise ValueError("Memory ID is required for delete operation")
-            
+
         params = {
             "agentId": self._agent_id,
             "memoryId": self._memory_id,

@@ -3,7 +3,16 @@
 from collections.abc import Iterable
 
 from fondat.aws.client import Config, wrap_client_error
-from fondat.aws.bedrock.domain import ActionGroup, ActionGroupSummary, ActionGroupExecutor, S3Location, ApiSchema, FunctionSchema, Function, Parameter
+from fondat.aws.bedrock.domain import (
+    ActionGroup,
+    ActionGroupSummary,
+    ActionGroupExecutor,
+    S3Location,
+    ApiSchema,
+    FunctionSchema,
+    Function,
+    Parameter,
+)
 from fondat.pagination import Cursor, Page
 from fondat.resource import resource
 from fondat.security import Policy
@@ -92,7 +101,7 @@ class ActionGroupsResource:
                 max_results=max_results,
                 cursor=cursor,
             )
-            
+
         # Use cache for first page results
         cache_key = f"agent_{self._agent_id}_version_{agentVersion}_action_groups_{max_results}"
         return await self._cache.get_cached_page(
@@ -139,6 +148,42 @@ class ActionGroupResource:
         self.config_agent = config_agent
         self.policies = policies
 
+    def _validate_action_group_data(self, group_data: dict) -> None:
+        """Validate required fields in action group data."""
+        required_fields = ["actionGroupId", "actionGroupName", "actionGroupState"]
+        for field in required_fields:
+            if field not in group_data:
+                raise ValueError(
+                    f"Missing required field '{field}' in action group data"
+                )
+
+    def _process_executor(self, executor: dict) -> ActionGroupExecutor:
+        """Process and convert action group executor data."""
+        if "lambda" in executor:
+            executor["lambda_"] = executor.pop("lambda")
+        if "customControl" not in executor:
+            executor["customControl"] = "RETURN_CONTROL"
+        return ActionGroupExecutor(**convert_dict_keys_to_snake_case(executor))
+
+    def _process_api_schema(self, schema: dict) -> ApiSchema:
+        """Process and convert API schema data."""
+        if "s3" in schema:
+            schema["s3"] = S3Location(
+                **convert_dict_keys_to_snake_case(schema["s3"])
+            )
+        return ApiSchema(**convert_dict_keys_to_snake_case(schema))
+
+    def _process_function_schema(self, schema: dict) -> FunctionSchema:
+        """Process and convert function schema data."""
+        functions = []
+        for func in schema.get("functions", []):
+            params = {}
+            for name, param in func.get("parameters", {}).items():
+                params[name] = Parameter(**convert_dict_keys_to_snake_case(param))
+            func["parameters"] = params
+            functions.append(Function(**convert_dict_keys_to_snake_case(func)))
+        return FunctionSchema(functions=functions)
+
     @operation(method="get", policies=lambda self: self.policies)
     async def get(self, agentVersion: str) -> ActionGroup:
         """
@@ -155,38 +200,32 @@ class ActionGroupResource:
                 response = await client.get_agent_action_group(
                     agentId=self._agent_id,
                     actionGroupId=self._action_group_id,
-                    agentVersion=agentVersion
+                    agentVersion=agentVersion,
                 )
+                if "agentActionGroup" not in response:
+                    raise ValueError("Missing 'agentActionGroup' in response")
                 group_data = response["agentActionGroup"]
-                
-                # Convert nested objects
+
+                # Validate required fields
+                self._validate_action_group_data(group_data)
+
+                # Process nested objects
                 if "actionGroupExecutor" in group_data:
-                    executor = group_data["actionGroupExecutor"]
-                    # Map lambda to lambda_ for the dataclass
-                    if "lambda" in executor:
-                        executor["lambda_"] = executor.pop("lambda")
-                    # Set default customControl if not present
-                    if "customControl" not in executor:
-                        executor["customControl"] = "RETURN_CONTROL"
-                    # Convert remaining fields to snake_case
-                    executor = convert_dict_keys_to_snake_case(executor)
-                    group_data["actionGroupExecutor"] = ActionGroupExecutor(**executor)
-                
+                    group_data["actionGroupExecutor"] = self._process_executor(
+                        group_data["actionGroupExecutor"]
+                    )
+
                 if "apiSchema" in group_data:
-                    schema = group_data["apiSchema"]
-                    if "s3" in schema:
-                        schema["s3"] = S3Location(**convert_dict_keys_to_snake_case(schema["s3"]))
-                    group_data["apiSchema"] = ApiSchema(**convert_dict_keys_to_snake_case(schema))
-                
+                    group_data["apiSchema"] = self._process_api_schema(
+                        group_data["apiSchema"]
+                    )
+
                 if "functionSchema" in group_data:
-                    schema = group_data["functionSchema"]
-                    functions = []
-                    for func in schema.get("functions", []):
-                        params = {}
-                        for name, param in func.get("parameters", {}).items():
-                            params[name] = Parameter(**convert_dict_keys_to_snake_case(param))
-                        func["parameters"] = params
-                        functions.append(Function(**convert_dict_keys_to_snake_case(func)))
-                    group_data["functionSchema"] = FunctionSchema(functions=functions)
-                
-                return ActionGroup(**convert_dict_keys_to_snake_case(group_data))
+                    group_data["functionSchema"] = self._process_function_schema(
+                        group_data["functionSchema"]
+                    )
+
+                return ActionGroup(
+                    **convert_dict_keys_to_snake_case(group_data),
+                    _factory=lambda self=self: self
+                )

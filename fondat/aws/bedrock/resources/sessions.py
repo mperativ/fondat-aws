@@ -75,7 +75,9 @@ class SessionsResource:
                 memory_id=d.get("memoryId", ""),
                 session_id=d["sessionId"],
                 session_start_time=parse_bedrock_datetime(d["createdAt"]),
-                session_expiry_time=parse_bedrock_datetime(d.get("lastUpdatedAt", d["createdAt"])),
+                session_expiry_time=parse_bedrock_datetime(
+                    d.get("lastUpdatedAt", d["createdAt"])
+                ),
                 summary_text=d.get("description", ""),
                 _factory=lambda sid=d["sessionId"], self=self: self[sid],
             ),
@@ -143,7 +145,7 @@ class SessionsResource:
                 session_data.setdefault("lastUpdatedAt", session_data["createdAt"])
                 # Convert camelCase to snake_case
                 session_data = convert_dict_keys_to_snake_case(session_data)
-                return Session(**session_data)
+                return Session(**session_data, _factory=lambda self=self: self)
 
     def __getitem__(self, session_id: str) -> "SessionResource":
         """Get a specific session resource.
@@ -183,8 +185,7 @@ class SessionResource:
 
     @operation(method="get", policies=lambda self: self.policies)
     async def get(self) -> Session:
-        """
-        Retrieve details of the session.
+        """Get session details.
 
         Returns:
             Session details
@@ -193,9 +194,10 @@ class SessionResource:
             with wrap_client_error():
                 response = await client.get_session(sessionIdentifier=self._session_id)
                 session_data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
+                session_data.setdefault("lastUpdatedAt", session_data["createdAt"])
                 # Convert camelCase to snake_case
                 session_data = convert_dict_keys_to_snake_case(session_data)
-                return Session(**session_data)
+                return Session(**session_data, _factory=lambda self=self: self)
 
     @operation(method="delete", policies=lambda self: self.policies)
     async def delete(self) -> None:
@@ -499,7 +501,7 @@ class InvocationResource:
 
 
 class StepResource:
-    def __init__(self, parent: 'InvocationResource', step_id: str):
+    def __init__(self, parent: "InvocationResource", step_id: str):
         self._parent = parent
         self._step_id = step_id
         self.config_runtime = parent.config_runtime
@@ -524,16 +526,15 @@ class StepResource:
                             image = block["image"]
                             source = ImageSource(**image["source"])
                             image_data = Image(format=image["format"], source=source)
-                        content_blocks.append(ContentBlock(
-                            image=image_data,
-                            text=block.get("text")
-                        ))
+                        content_blocks.append(
+                            ContentBlock(image=image_data, text=block.get("text"))
+                        )
                     step_data["payload"] = Payload(contentBlocks=content_blocks)
                 mapped_data = {
                     "invocation_id": step_data["invocationId"],
                     "invocation_step_id": step_data["invocationStepId"],
                     "invocation_step_time": step_data["invocationStepTime"],
                     "payload": step_data["payload"],
-                    "session_id": step_data["sessionId"]
+                    "session_id": step_data["sessionId"],
                 }
                 return InvocationStep(**mapped_data)

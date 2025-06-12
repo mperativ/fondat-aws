@@ -93,7 +93,7 @@ class CollaboratorsResource:
                 cursor=cursor,
                 agentVersion=agentVersion,
             )
-            
+
         # Use cache for first page results
         cache_key = f"agent_{self._agent_id}_collaborators_{max_results}_{agentVersion}"
         return await self._cache.get_cached_page(

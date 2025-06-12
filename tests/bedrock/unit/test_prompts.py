@@ -1,11 +1,10 @@
-"""Unit tests for prompts."""
-
 import pytest
-from fondat.aws.bedrock.resources.prompts import PromptsResource
-from fondat.aws.bedrock.domain import PromptSummary
+from fondat.aws.bedrock.resources.prompts import PromptsResource, PromptResource
+from fondat.aws.bedrock.domain import PromptSummary, Prompt
 from fondat.error import NotFoundError, ForbiddenError
 from tests.bedrock.unit.conftest import my_vcr
 from tests.bedrock.unit.test_config import TEST_PROMPT_ID
+from datetime import datetime
 
 
 @pytest.fixture
@@ -13,10 +12,15 @@ def prompts_resource(config):
     """Fixture for the prompts resource."""
     return PromptsResource(config_agent=config, cache_size=10, cache_expire=1)
 
+
 @pytest.fixture
-def prompt_resource(prompts_resource):
-    """Fixture for a specific prompt resource."""
-    return prompts_resource[TEST_PROMPT_ID]
+def prompt_resource(config):
+    """Provide a prompt resource for testing."""
+    return PromptResource(
+        id=TEST_PROMPT_ID,
+        config_agent=config,
+    )
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_prompts.yaml")
@@ -31,6 +35,7 @@ async def test_list_prompts(prompts_resource):
             assert page.items[0].name
     except Exception as e:
         pytest.fail(f"Failed to list prompts: {str(e)}")
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_prompts.yaml")
@@ -47,23 +52,23 @@ async def test_list_prompts_with_cursor(prompts_resource):
     except Exception as e:
         pytest.fail(f"Failed to list prompts with cursor: {str(e)}")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_prompt.yaml")
-async def test_get_prompt(prompts_resource):
-    """Test getting details of a prompt."""
+async def test_get_prompt(prompt_resource):
+    """Test getting prompt."""
     try:
-        page = await prompts_resource.get(max_results=1)
-        assert page.items, "No prompts available for get_prompt test"
-        id = page.items[0].id
-        prompt = await prompts_resource[id].get()
-        assert prompt is not None, "Prompt not found"
-        assert prompt.id == id, "Prompt ID mismatch"
-        assert prompt.name is not None, "name missing"
-        assert prompt.description is not None, "description missing"
-        assert prompt.created_at is not None, "created_at missing"
-        assert prompt.updated_at is not None, "updated_at missing"
+        prompt = await prompt_resource.get()
+        assert prompt is not None
+        assert isinstance(prompt, Prompt)
+        assert isinstance(prompt.resource, PromptResource)
+        assert prompt.prompt_id == TEST_PROMPT_ID
+        assert prompt.created_at is not None
+    except ForbiddenError:
+        pytest.skip("Skipping test due to IAM permissions")
     except Exception as e:
         pytest.fail(f"Failed to get prompt: {str(e)}")
+
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_prompt_properties.yaml")
@@ -76,6 +81,7 @@ async def test_prompt_properties(prompt_resource):
     except Exception as e:
         pytest.fail(f"Failed to test prompt properties: {str(e)}")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_nonexistent_prompt.yaml")
 async def test_get_nonexistent_prompt(prompts_resource):
@@ -86,6 +92,7 @@ async def test_get_nonexistent_prompt(prompts_resource):
     except Exception as e:
         pytest.fail(f"Failed to test nonexistent prompt: {str(e)}")
 
+
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_prompt_cache.yaml")
 async def test_prompt_cache(prompts_resource):
@@ -95,4 +102,4 @@ async def test_prompt_cache(prompts_resource):
         page2 = await prompts_resource.get()
         assert page1.items == page2.items
     except Exception as e:
-        pytest.fail(f"Failed to test prompt cache: {str(e)}") 
+        pytest.fail(f"Failed to test prompt cache: {str(e)}")

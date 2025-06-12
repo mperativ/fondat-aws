@@ -1,17 +1,12 @@
-"""Tests for generic resources."""
-
 import pytest
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 from fondat.aws.bedrock.domain import (
     VersionSummary,
     AliasSummary,
     AgentVersion,
-    FlowVersion,
-    PromptVersion,
     AgentAlias,
-    FlowAlias,
 )
 from fondat.aws.bedrock.resources.generic_resources import (
     GenericVersionResource,
@@ -42,7 +37,7 @@ async def test_generic_version_resource_list_versions(mock_agent_client):
         get_method="get_agent_version",
         items_key="agentVersionSummaries",
     )
-    
+
     mock_response = {
         "agentVersionSummaries": [
             {
@@ -81,7 +76,7 @@ async def test_generic_version_resource_missing_required_fields(mock_agent_clien
         get_method="get_agent_version",
         dto_type=AgentVersion,
     )
-    
+
     mock_response = {
         "version_arn": "arn:test",
         # Missing required fields: version_id, version_name, created_at, updated_at
@@ -105,7 +100,7 @@ async def test_generic_alias_resource_list_aliases(mock_agent_client):
         get_method="get_agent_alias",
         items_key="agentAliasSummaries",
     )
-    
+
     mock_response = {
         "agentAliasSummaries": [
             {
@@ -143,7 +138,7 @@ async def test_generic_alias_resource_missing_required_fields(mock_agent_client)
         get_method="get_agent_alias",
         dto_type=AgentAlias,
     )
-    
+
     mock_response = {
         "agent_alias_arn": "arn:test",
         # Missing required fields: agent_alias_id, agent_alias_name, created_at, updated_at
@@ -167,7 +162,7 @@ async def test_generic_version_resource_pagination(mock_agent_client):
         get_method="get_agent_version",
         items_key="agentVersionSummaries",
     )
-    
+
     mock_response1 = {
         "agentVersionSummaries": [
             {
@@ -212,7 +207,7 @@ async def test_generic_alias_resource_pagination(mock_agent_client):
         get_method="get_agent_alias",
         items_key="agentAliasSummaries",
     )
-    
+
     mock_response1 = {
         "agentAliasSummaries": [
             {
@@ -259,7 +254,7 @@ async def test_generic_version_resource_cache(mock_agent_client):
         cache_size=100,
         cache_expire=300,
     )
-    
+
     mock_response = {
         "agentVersionSummaries": [
             {
@@ -293,7 +288,7 @@ async def test_generic_alias_resource_cache(mock_agent_client):
         cache_size=100,
         cache_expire=300,
     )
-    
+
     mock_response = {
         "agentAliasSummaries": [
             {
