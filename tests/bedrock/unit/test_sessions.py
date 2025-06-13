@@ -20,27 +20,17 @@ def sessions_resource(config):
 
 
 @pytest.fixture
-def session_resource(config):
+async def session_resource(sessions_resource):
     """Provide a session resource for testing."""
-    return SessionResource(
-        agent_id=TEST_AGENT_ID,
-        session_id="f6fcf7ca-2b27-4708-bf37-f5300d77a02c",
-        config_runtime=config,
-    )
-
-
-@pytest.fixture
-async def specific_session_resource(sessions_resource):
-    """Fixture to provide session resource."""
     # Create a new session for testing
     session = await sessions_resource.create()
     return sessions_resource[session.session_id]
 
 
 @pytest.fixture
-async def invocations_resource(specific_session_resource):
+async def invocations_resource(session_resource):
     """Fixture to provide invocations resource."""
-    session = specific_session_resource
+    session = session_resource
     return session.invocations
 
 
@@ -106,7 +96,7 @@ async def test_create_session(sessions_resource):
 
 
 @pytest.mark.asyncio
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_session.yaml")
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
 async def test_get_session(session_resource):
     """Test getting session."""
     session = await session_resource.get()
@@ -120,7 +110,6 @@ async def test_get_session(session_resource):
     # Validate session properties
     assert isinstance(session, Session)
     assert isinstance(session.resource, SessionResource)
-    assert session.session_id == TEST_SESSION_ID
     assert isinstance(session.created_at, datetime)
     if hasattr(session, "session_metadata"):
         assert isinstance(session.session_metadata, dict)
@@ -134,8 +123,10 @@ async def test_end_session(session_resource):
         session = session_resource
         current_session = await session.get()
         assert isinstance(current_session, Session)
-        assert current_session.session_status == "ENDED"
-
+        assert current_session.session_status == "ACTIVE"
+        await session.end()
+        ended_session = await session.get()
+        assert ended_session.session_status == "ENDED"
     except Exception as e:
         pytest.fail(f"Failed to end session: {str(e)}")
 
@@ -148,7 +139,8 @@ async def test_delete_session(session_resource):
         session = session_resource
         current_session = await session.get()
         assert isinstance(current_session, Session)
-        assert current_session.session_status == "ENDED"
+        assert current_session.session_status == "ACTIVE"
+        await session.end()
         await session.delete()
         with pytest.raises(NotFoundError):
             await session.get()

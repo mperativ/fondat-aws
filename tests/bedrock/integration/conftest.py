@@ -213,3 +213,16 @@ async def session(agent):
         sr = agent.sessions[s.sessionId]
         await sr.end()
         await sr.delete()
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--live",
+        action="store_true",
+        default=False,
+        help="Run tests in live mode (record_mode='all')",
+    )
+
+def pytest_configure(config):
+    if config.getoption("--live"):
+        my_vcr.record_mode = "all"

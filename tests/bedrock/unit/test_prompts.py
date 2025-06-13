@@ -62,7 +62,7 @@ async def test_get_prompt(prompt_resource):
         assert prompt is not None
         assert isinstance(prompt, Prompt)
         assert isinstance(prompt.resource, PromptResource)
-        assert prompt.prompt_id == TEST_PROMPT_ID
+        assert prompt.id == TEST_PROMPT_ID
         assert prompt.created_at is not None
     except ForbiddenError:
         pytest.skip("Skipping test due to IAM permissions")

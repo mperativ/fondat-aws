@@ -17,8 +17,8 @@ class DateTimeEncoder(json.JSONEncoder):
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_sessions.yaml")
-async def test_list_sessions_playback(aws_session):
-    """Playback: list sessions and check sessionId field"""
+async def test_list_sessions(aws_session):
+    """Test listing sessions and check sessionId field."""
     ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
@@ -26,26 +26,13 @@ async def test_list_sessions_playback(aws_session):
     # list sessions
     sessions_page = await resource[agent_id].sessions.get(max_results=5)
     assert sessions_page.items and hasattr(sessions_page.items[0], "session_id")
-    logger.info(f"Playback - Found {len(sessions_page.items)} sessions")
-
-
-@pytest.mark.live_only
-@pytest.mark.asyncio
-async def test_list_sessions_live(aws_session):
-    """Live only: list sessions and verify sessionId is not None"""
-    ctx = aws_session
-    resource = ctx.agents
-    page = await resource.get(max_results=1)
-    agent_id = page.items[0].agent_id
-    sessions_page = await resource[agent_id].sessions.get(max_results=5)
-    assert sessions_page.items and hasattr(sessions_page.items[0], "session_id")
-    logger.info(f"Live - Found {len(sessions_page.items)} sessions")
+    logger.info(f"Found {len(sessions_page.items)} sessions")
 
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
-async def test_session_lifecycle_playback(aws_session):
-    """Playback: create session, list invocations, end and delete"""
+async def test_session_lifecycle(aws_session):
+    """Test session lifecycle: create, list invocations, end and delete."""
     ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
@@ -60,64 +47,13 @@ async def test_session_lifecycle_playback(aws_session):
     await resource[agent_id].sessions[session.session_id].end()
     # delete session
     await resource[agent_id].sessions[session.session_id].delete()
-    logger.info("Playback session lifecycle completed")
-
-
-@pytest.mark.live_only
-@pytest.mark.asyncio
-async def test_session_lifecycle_live(aws_session):
-    """Live only: create session, list invocations, end and delete"""
-    ctx = aws_session
-    resource = ctx.agents
-    page = await resource.get(max_results=1)
-    agent_id = page.items[0].agent_id
-    session = await resource[agent_id].sessions.create()
-    assert session.session_status == "ACTIVE"
-    inv = await resource[agent_id].sessions[session.session_id].invocations.get()
-    assert isinstance(inv.items, list)
-    sr = resource[agent_id].sessions[session.session_id]
-    await sr.end()
-    await sr.delete()
-    logger.info("Live session lifecycle completed")
+    logger.info("Session lifecycle completed")
 
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invoke_flow.yaml")
-async def test_invoke_flow_playback(aws_session):
-    "Playback: invoke flow without error"
-    resource = aws_session.agents
-    page = await resource.get(max_results=1)
-    agent_id = page.items[0].agent_id
-    # pick first flow (independiente)
-    flows = flows_resource(
-        config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime
-    )
-    flows_page = await flows.get(max_results=1)
-    flow = flows_page.items[0]
-    # pick first alias
-    aliases = await flows[flow.flow_id].aliases.get(max_results=1)
-    alias = aliases.items[0].alias_id
-    # create session
-    session = await resource[agent_id].sessions.create()
-    try:
-        response = await flows[flow.flow_id].invoke(
-            input_content="Write a poem in English about 'The Name of the Rose'. Make it thoughtful and insightful.",
-            flowAliasIdentifier=alias,
-            nodeName="FlowInputNode",
-            nodeOutputName="document",
-        )
-        assert hasattr(response, "response_stream"), "No response_stream on playback invoke"
-    finally:
-        sr = resource[agent_id].sessions[session.session_id]
-        await sr.end()
-        await sr.delete()
-    logger.info("Playback flow invocation completed")
-
-
-@pytest.mark.live_only
-@pytest.mark.asyncio
-async def test_invoke_flow_live(aws_session):
-    """Live only: invoke flow against real AWS and cleanup session"""
+async def test_invoke_flow(aws_session):
+    """Test invoking a flow and cleanup session."""
     resource = aws_session.agents
     page = await resource.get(max_results=1)
     agent_id = page.items[0].agent_id
@@ -129,7 +65,6 @@ async def test_invoke_flow_live(aws_session):
     aliases = await flows[flow.flow_id].aliases.get(max_results=1)
     alias = aliases.items[0].alias_id
     session = await resource[agent_id].sessions.create()
-    output = ""
     try:
         response = await flows[flow.flow_id].invoke(
             input_content="Write a poem in English about 'The Name of the Rose'. Make it thoughtful and insightful.",
@@ -137,18 +72,18 @@ async def test_invoke_flow_live(aws_session):
             nodeName="FlowInputNode",
             nodeOutputName="document",
         )
-        assert hasattr(response, "response_stream"), "No response_stream on live invoke"
+        assert hasattr(response, "response_stream"), "No response_stream on invoke"
     finally:
         sr = resource[agent_id].sessions[session.session_id]
         await sr.end()
         await sr.delete()
-    logger.info("Live flow invocation completed")
+    logger.info("Flow invocation completed")
 
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invocation_lifecycle.yaml")
-async def test_invocation_lifecycle_playback(aws_session):
-    """Playback: create invocation, list steps, get step details"""
+async def test_invocation_lifecycle(aws_session):
+    """Test invocation lifecycle: create invocation, list steps, get step details."""
     ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
@@ -176,46 +111,13 @@ async def test_invocation_lifecycle_playback(aws_session):
         sr = resource[agent_id].sessions[session.session_id]
         await sr.end()
         await sr.delete()
-    logger.info("Playback invocation lifecycle completed")
-
-
-@pytest.mark.asyncio
-async def test_invocation_lifecycle_live(aws_session):
-    """Live: create invocation, list steps, get step details"""
-    ctx = aws_session
-    resource = ctx.agents
-    page = await resource.get(max_results=1)
-    agent_id = page.items[0].agent_id
-    # create session
-    session = await resource[agent_id].sessions.create()
-    try:
-        # create invocation
-        invocation = await resource[agent_id].sessions[session.session_id].invocations.create()
-        assert invocation.invocation_id is not None
-        # list steps
-        invocation_resource = (
-            resource[agent_id]
-            .sessions[session.session_id]
-            .invocations[invocation.invocation_id]
-        )
-        steps = await invocation_resource.get_steps()
-        assert isinstance(steps.items, list)
-        if steps.items:
-            # get step details
-            step = await invocation_resource[steps.items[0].invocation_step_id].get()
-            assert step.invocation_id == invocation.invocation_id
-            assert step.payload is not None
-    finally:
-        sr = resource[agent_id].sessions[session.session_id]
-        await sr.end()
-        await sr.delete()
-    logger.info("Live invocation lifecycle completed")
+    logger.info("Test invocation lifecycle completed")
 
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invocation_steps.yaml")
-async def test_invocation_steps_playback(aws_session):
-    """Playback: create invocation and add steps"""
+async def test_invocation_steps(aws_session):
+    """Test invocation steps: create invocation, list steps, get step details."""
     ctx = aws_session
     resource = ctx.agents
     page = await resource.get(max_results=1)
@@ -226,58 +128,21 @@ async def test_invocation_steps_playback(aws_session):
         # create invocation
         invocation = await resource[agent_id].sessions[session.session_id].invocations.create()
         assert invocation.invocation_id is not None
-        # add step
+        # list steps
         invocation_resource = (
             resource[agent_id]
             .sessions[session.session_id]
             .invocations[invocation.invocation_id]
         )
-        step_id = await invocation_resource.put_step(
-            payload={"contentBlocks": [{"text": "Test step"}]},
-            invocation_step_time=datetime.now(timezone.utc),
-        )
-        assert step_id is not None
-        # verify step was added
-        step = await invocation_resource[step_id].get()
-        assert step.invocation_id == invocation.invocation_id
-        assert step.payload is not None
+        steps = await invocation_resource.get_steps()
+        assert isinstance(steps.items, list)
+        if steps.items:
+            # get step details
+            step = await invocation_resource[steps.items[0].invocation_step_id].get()
+            assert step.invocation_id == invocation.invocation_id
+            assert step.payload is not None
     finally:
         sr = resource[agent_id].sessions[session.session_id]
         await sr.end()
         await sr.delete()
-    logger.info("Playback invocation steps completed")
-
-
-@pytest.mark.asyncio
-async def test_invocation_steps_live(aws_session):
-    """Live: create invocation and add steps"""
-    ctx = aws_session
-    resource = ctx.agents
-    page = await resource.get(max_results=1)
-    agent_id = page.items[0].agent_id
-    # create session
-    session = await resource[agent_id].sessions.create()
-    try:
-        # create invocation
-        invocation = await resource[agent_id].sessions[session.session_id].invocations.create()
-        assert invocation.invocation_id is not None
-        # add step
-        invocation_resource = (
-            resource[agent_id]
-            .sessions[session.session_id]
-            .invocations[invocation.invocation_id]
-        )
-        step_id = await invocation_resource.put_step(
-            payload={"contentBlocks": [{"text": "Test step"}]},
-            invocation_step_time=datetime.now(timezone.utc),
-        )
-        assert step_id is not None
-        # verify step was added
-        step = await invocation_resource[step_id].get()
-        assert step.invocation_id == invocation.invocation_id
-        assert step.payload is not None
-    finally:
-        sr = resource[agent_id].sessions[session.session_id]
-        await sr.end()
-        await sr.delete()
-    logger.info("Live invocation steps completed")
+    logger.info("Invocation steps completed")

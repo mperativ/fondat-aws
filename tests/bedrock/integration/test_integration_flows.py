@@ -4,8 +4,9 @@ from tests.bedrock.integration.conftest import my_vcr, aws_session
 
 
 @pytest.mark.asyncio
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_integration_list_flows.yaml")
-async def test_integration_list_flows_playback(aws_session):
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_list_flows.yaml")
+async def test_list_flows(aws_session):
+    """Test listing flows."""
     flows = flows_resource(
         config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime
     )
@@ -19,38 +20,10 @@ async def test_integration_list_flows_playback(aws_session):
     assert page.items[0]._factory is not None
 
 
-@pytest.mark.live_only
 @pytest.mark.asyncio
-async def test_list_flows_live(aws_session):
-    flows = flows_resource(
-        config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime
-    )
-    page = await flows.get(max_results=1)
-    assert page.items is not None
-    assert page.items[0].flow_name is not None
-
-
-@pytest.mark.asyncio
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_flow_playback.yaml")
-async def test_integration_get_flow_playback(aws_session):
-    flows = flows_resource(
-        config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime
-    )
-    page = await flows.get(max_results=1)
-    flow = await flows[page.items[0].flow_id].get()
-    assert flow.flow_id is not None
-    assert flow.flow_name is not None
-    assert flow.status is not None
-    assert flow.created_at is not None
-    assert flow.updated_at is not None
-    assert flow.definition is not None
-    assert flow.version is not None
-    assert flow._factory is not None
-
-
-@pytest.mark.live_only
-@pytest.mark.asyncio
-async def test_get_flow_live(aws_session):
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_flow.yaml")
+async def test_get_flow(aws_session):
+    """Test getting flow details."""
     flows = flows_resource(
         config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime
     )
@@ -67,8 +40,9 @@ async def test_get_flow_live(aws_session):
 
 
 @pytest.mark.asyncio
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_flow_version_playback.yaml")
-async def test_get_flow_version_playback(aws_session):
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_flow_version.yaml")
+async def test_get_flow_version(aws_session):
+    """Test getting flow version details."""
     flows = flows_resource(
         config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime
     )
@@ -82,8 +56,9 @@ async def test_get_flow_version_playback(aws_session):
 
 
 @pytest.mark.asyncio
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_flow_alias_playback.yaml")
-async def test_get_flow_alias_playback(aws_session):
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_get_flow_alias.yaml")
+async def test_get_flow_alias(aws_session):
+    """Test getting flow alias details."""
     flows = flows_resource(
         config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime
     )

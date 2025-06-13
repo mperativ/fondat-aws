@@ -73,12 +73,6 @@ def mock_runtime_client():
 
 
 @pytest.fixture
-def vcr_playback():
-    """Fixture to provide VCR playback functionality."""
-    return my_vcr
-
-
-@pytest.fixture
 def bedrock_cache():
     """Fixture to provide a BedrockCache instance."""
     return BedrockCache(cache_size=10, cache_expire=300)
