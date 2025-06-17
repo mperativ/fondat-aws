@@ -134,8 +134,8 @@ class AgentResource:
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
                 response = await client.invoke_agent(**params)
-                data["_factory"] = lambda: self
                 data = convert_dict_keys_to_snake_case(response)
+                data["_factory"] = lambda: self
                 return AgentInvocation(**data)
 
     @property
