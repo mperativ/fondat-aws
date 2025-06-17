@@ -201,25 +201,11 @@ class SessionResource:
 
     @operation(method="delete", policies=lambda self: self.policies)
     async def delete(self) -> None:
-        """Delete session."""
+        """Delete session. This will first end the session and then delete it."""
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
+                await client.end_session(sessionIdentifier=self._session_id)
                 await client.delete_session(sessionIdentifier=self._session_id)
-
-    @operation(method="post", policies=lambda self: self.policies)
-    async def end(self) -> Session:
-        """End session.
-
-        Returns:
-            Session end details
-        """
-        async with runtime_client(self.config_runtime) as client:
-            with wrap_client_error():
-                response = await client.end_session(sessionIdentifier=self._session_id)
-                session_data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
-                # Convert camelCase to snake_case
-                session_data = convert_dict_keys_to_snake_case(session_data)
-                return Session(**session_data)
 
     @operation(method="patch", policies=lambda self: self.policies)
     async def update(

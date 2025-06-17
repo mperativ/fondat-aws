@@ -37,7 +37,6 @@ AgentsResource                                              # /agents
         └── [session_id] → SessionResource                  # /agents/{agent_id}/sessions/{session_id}
             ├── .get()                                      # Get session
             ├── .delete()                                   # Delete session
-            ├── .end()                                      # End session
             ├── .update()                                   # Update session
             └── invocations → InvocationsResource           # /agents/{agent_id}/sessions/{session_id}/invocations
                 ├── .get()                                  # List invocations

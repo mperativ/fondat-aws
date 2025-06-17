@@ -29,8 +29,3 @@ if not TEST_AGENT_ALIAS_ID:
 TEST_ACTION_GROUP_ID = os.environ.get("TEST_ACTION_GROUP_ID")
 if not TEST_ACTION_GROUP_ID:
     raise ValueError("TEST_ACTION_GROUP_ID environment variable is required")
-
-# Test Session ID
-TEST_SESSION_ID = os.environ.get("TEST_SESSION_ID")
-if not TEST_SESSION_ID:
-    raise ValueError("TEST_SESSION_ID environment variable is required")

@@ -154,7 +154,6 @@ try:
     invocation = await agents[agent_id].sessions[session.session_id].invocations.create()
     steps = await agents[agent_id].sessions[session.session_id].invocations[invocation.invocation_id].get_steps()
 finally:
-    await agents[agent_id].sessions[session.session_id].end()
     await agents[agent_id].sessions[session.session_id].delete()
 ```
 
@@ -175,7 +174,6 @@ try:
         nodeOutputName="document"
     )
 finally:
-    await agents[agent_id].sessions[session.session_id].end()
     await agents[agent_id].sessions[session.session_id].delete()
 ```
 

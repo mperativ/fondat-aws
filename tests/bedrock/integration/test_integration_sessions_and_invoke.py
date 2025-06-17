@@ -33,7 +33,7 @@ async def test_list_sessions(aws_session):
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
 async def test_session_lifecycle(aws_session):
-    """Test session lifecycle: create, list invocations, end and delete."""
+    """Test session lifecycle: create, list invocations, and delete."""
     ctx = aws_session
     resource = ctx.agents
     agent_id = TEST_AGENT_ID
@@ -43,8 +43,6 @@ async def test_session_lifecycle(aws_session):
     # list invocations
     inv = await resource[agent_id].sessions[session.session_id].invocations.get()
     assert isinstance(inv.items, list)
-    # end session
-    await resource[agent_id].sessions[session.session_id].end()
     # delete session
     await resource[agent_id].sessions[session.session_id].delete()
     logger.info("Session lifecycle completed")
@@ -74,7 +72,6 @@ async def test_invoke_flow(aws_session):
         assert hasattr(response, "response_stream"), "No response_stream on invoke"
     finally:
         sr = resource[agent_id].sessions[session.session_id]
-        await sr.end()
         await sr.delete()
     logger.info("Flow invocation completed")
 
@@ -107,7 +104,6 @@ async def test_invocation_lifecycle(aws_session):
             assert step.payload is not None
     finally:
         sr = resource[agent_id].sessions[session.session_id]
-        await sr.end()
         await sr.delete()
     logger.info("Test invocation lifecycle completed")
 
@@ -140,7 +136,6 @@ async def test_invocation_steps(aws_session):
             assert step.payload is not None
     finally:
         sr = resource[agent_id].sessions[session.session_id]
-        await sr.end()
         await sr.delete()
     logger.info("Invocation steps completed")
 
@@ -165,6 +160,5 @@ async def test_invoke_agent(aws_session):
     finally:
         # Cleanup
         sr = resource[agent_id].sessions[session.session_id]
-        await sr.end()
         await sr.delete()
     logger.info("Agent invocation completed")

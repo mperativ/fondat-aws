@@ -211,7 +211,6 @@ async def session(agent):
         yield s
     finally:
         sr = agent.sessions[s.sessionId]
-        await sr.end()
         await sr.delete()
 
 

@@ -8,7 +8,7 @@ from fondat.aws.bedrock.resources.sessions import SessionsResource, SessionResou
 from fondat.aws.bedrock.domain import Session, SessionSummary, Invocation, InvocationStepSummary
 
 from tests.bedrock.unit.conftest import my_vcr
-from tests.bedrock.unit.test_config import TEST_AGENT_ID, TEST_SESSION_ID
+from tests.bedrock.unit.test_config import TEST_AGENT_ID
 
 
 @pytest.fixture
@@ -117,22 +117,6 @@ async def test_get_session(session_resource):
 
 @pytest.mark.asyncio
 @pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
-async def test_end_session(session_resource):
-    """Test ending a session."""
-    try:
-        session = session_resource
-        current_session = await session.get()
-        assert isinstance(current_session, Session)
-        assert current_session.session_status == "ACTIVE"
-        await session.end()
-        ended_session = await session.get()
-        assert ended_session.session_status == "ENDED"
-    except Exception as e:
-        pytest.fail(f"Failed to end session: {str(e)}")
-
-
-@pytest.mark.asyncio
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_session_lifecycle.yaml")
 async def test_delete_session(session_resource):
     """Test deleting a session."""
     try:
@@ -140,7 +124,6 @@ async def test_delete_session(session_resource):
         current_session = await session.get()
         assert isinstance(current_session, Session)
         assert current_session.session_status == "ACTIVE"
-        await session.end()
         await session.delete()
         with pytest.raises(NotFoundError):
             await session.get()
