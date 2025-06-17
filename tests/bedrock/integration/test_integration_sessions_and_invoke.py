@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timezone
 from tests.bedrock.integration.conftest import my_vcr
 from fondat.aws.bedrock import agents_resource, flows_resource
+from tests.bedrock.unit.test_config import TEST_AGENT_ID, TEST_AGENT_ALIAS_ID
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +22,8 @@ async def test_list_sessions(aws_session):
     """Test listing sessions and check sessionId field."""
     ctx = aws_session
     resource = ctx.agents
-    page = await resource.get(max_results=1)
-    agent_id = page.items[0].agent_id
+
+    agent_id = TEST_AGENT_ID
     # list sessions
     sessions_page = await resource[agent_id].sessions.get(max_results=5)
     assert sessions_page.items and hasattr(sessions_page.items[0], "session_id")
@@ -35,8 +36,7 @@ async def test_session_lifecycle(aws_session):
     """Test session lifecycle: create, list invocations, end and delete."""
     ctx = aws_session
     resource = ctx.agents
-    page = await resource.get(max_results=1)
-    agent_id = page.items[0].agent_id
+    agent_id = TEST_AGENT_ID
     # create session
     session = await resource[agent_id].sessions.create()
     assert session.session_status == "ACTIVE"
@@ -55,8 +55,7 @@ async def test_session_lifecycle(aws_session):
 async def test_invoke_flow(aws_session):
     """Test invoking a flow and cleanup session."""
     resource = aws_session.agents
-    page = await resource.get(max_results=1)
-    agent_id = page.items[0].agent_id
+    agent_id = TEST_AGENT_ID
     flows = flows_resource(
         config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime
     )
@@ -86,8 +85,7 @@ async def test_invocation_lifecycle(aws_session):
     """Test invocation lifecycle: create invocation, list steps, get step details."""
     ctx = aws_session
     resource = ctx.agents
-    page = await resource.get(max_results=1)
-    agent_id = page.items[0].agent_id
+    agent_id = TEST_AGENT_ID
     # create session
     session = await resource[agent_id].sessions.create()
     try:
@@ -120,8 +118,7 @@ async def test_invocation_steps(aws_session):
     """Test invocation steps: create invocation, list steps, get step details."""
     ctx = aws_session
     resource = ctx.agents
-    page = await resource.get(max_results=1)
-    agent_id = page.items[0].agent_id
+    agent_id = TEST_AGENT_ID
     # create session
     session = await resource[agent_id].sessions.create()
     try:
@@ -146,3 +143,28 @@ async def test_invocation_steps(aws_session):
         await sr.end()
         await sr.delete()
     logger.info("Invocation steps completed")
+
+
+@pytest.mark.asyncio
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invoke_agent.yaml")
+async def test_invoke_agent(aws_session):
+    """Test invoking an agent and cleanup session."""
+    resource = aws_session.agents
+    agent_id = TEST_AGENT_ID
+    alias = TEST_AGENT_ALIAS_ID
+    session = await resource[agent_id].sessions.create()
+    try:
+        response = await resource[agent_id].invoke(
+            inputText="Write a poem about the sun.",
+            sessionId=session.session_id,
+            agentAliasId=alias,
+            enableTrace=True
+        )
+        assert hasattr(response, "completion"), "No completion in response"
+        assert response.session_id == session.session_id
+    finally:
+        # Cleanup
+        sr = resource[agent_id].sessions[session.session_id]
+        await sr.end()
+        await sr.delete()
+    logger.info("Agent invocation completed")
