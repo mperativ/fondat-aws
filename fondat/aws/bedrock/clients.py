@@ -11,25 +11,15 @@ from fondat.aws.client import Config
 _logger = logging.getLogger(__name__)
 
 
-async def _create(service: str, config: Config | None = None) -> asynccontextmanager:
-    """Create an async context manager for an AWS service client."""
-    cm = fondat.aws.client.create_client(service, config=config)
-    if asyncio.iscoroutine(cm):
-        cm = await cm
-    return cm
-
-
 @asynccontextmanager
 async def agent_client(config: Config | None = None) -> AioBaseClient:
-    """Asynchronous client for Bedrock Agent control-plane operations."""
-    cm = await _create("bedrock-agent", config)
+    cm = fondat.aws.client.create_client("bedrock-agent", config=config)
     async with cm as client:
         yield client
 
 
 @asynccontextmanager
 async def runtime_client(config: Config | None = None) -> AioBaseClient:
-    """Asynchronous client for Bedrock Agent runtime operations."""
-    cm = await _create("bedrock-agent-runtime", config)
+    cm = fondat.aws.client.create_client("bedrock-agent-runtime", config=config)
     async with cm as client:
         yield client
