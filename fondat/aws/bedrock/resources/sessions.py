@@ -201,11 +201,18 @@ class SessionResource:
 
     @operation(method="delete", policies=lambda self: self.policies)
     async def delete(self) -> None:
-        """Delete session. This will first end the session and then delete it."""
+        """Delete session. This will first try to delete directly,
+        and if the session is still active, end it first."""
         async with runtime_client(self.config_runtime) as client:
             with wrap_client_error():
-                await client.end_session(sessionIdentifier=self._session_id)
-                await client.delete_session(sessionIdentifier=self._session_id)
+                try:
+                    await client.delete_session(sessionIdentifier=self._session_id)
+                except Exception:
+                    try:
+                        await client.end_session(sessionIdentifier=self._session_id)
+                        await client.delete_session(sessionIdentifier=self._session_id)
+                    except Exception:
+                        await client.delete_session(sessionIdentifier=self._session_id)
 
     @operation(method="patch", policies=lambda self: self.policies)
     async def update(

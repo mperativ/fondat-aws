@@ -2,12 +2,15 @@ import os
 import boto3
 import pytest
 import vcr
+import logging
 from pathlib import Path
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 from fondat.aws.client import Config
 from fondat.aws.bedrock.cache import BedrockCache
+
+logger = logging.getLogger(__name__)
 
 
 # Configure VCR to use unit test cassettes
@@ -130,3 +133,31 @@ def credentials(config):
         "aws_secret_access_key": config.aws_secret_access_key,
         "aws_session_token": config.aws_session_token,
     }
+
+
+@pytest.fixture(autouse=True)
+async def cleanup_sessions_unit(config):
+    """
+    Fixture that automatically cleans up all sessions after each unit test.
+    This ensures no sessions are left behind from test runs.
+    """
+    yield
+    
+    try:
+        from tests.bedrock.unit.test_config import TEST_AGENT_ID
+        from fondat.aws.bedrock.resources.sessions import SessionsResource
+        
+        sessions_resource = SessionsResource(
+            agent_id=TEST_AGENT_ID, config_runtime=config, cache_size=10, cache_expire=1
+        )
+        
+        sessions_page = await sessions_resource.get(max_results=100)
+        for session_summary in sessions_page.items:
+            try:
+                session_resource_instance = sessions_resource[session_summary.session_id]
+                await session_resource_instance.delete()
+            except Exception as e:
+                logger.warning(f"Failed to delete unit test session {session_summary.session_id}: {e}")
+                
+    except Exception as e:
+        logger.warning(f"Error during unit test session cleanup: {e}")

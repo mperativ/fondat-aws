@@ -1,6 +1,7 @@
 import pytest
 from botocore.exceptions import HTTPClientError
 from datetime import datetime
+import logging
 
 from fondat.pagination import Page
 from fondat.error import NotFoundError
@@ -9,6 +10,8 @@ from fondat.aws.bedrock.domain import Session, SessionSummary, Invocation, Invoc
 
 from tests.bedrock.unit.conftest import my_vcr
 from tests.bedrock.unit.test_config import TEST_AGENT_ID
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -24,7 +27,15 @@ async def session_resource(sessions_resource):
     """Provide a session resource for testing."""
     # Create a new session for testing
     session = await sessions_resource.create()
-    return sessions_resource[session.session_id]
+    session_resource = sessions_resource[session.session_id]
+    
+    try:
+        yield session_resource
+    finally:
+        try:
+            await session_resource.delete()
+        except Exception as e:
+            logger.warning(f"Failed to delete unit test session {session.session_id}: {e}")
 
 
 @pytest.fixture
@@ -41,7 +52,14 @@ async def invocation_resource(invocations_resource):
     invocations = invocations_resource
     invocation = await invocations.create()
     # Get the InvocationResource using the invocation ID
-    return invocations[invocation.invocation_id]
+    invocation_resource = invocations[invocation.invocation_id]
+    
+    try:
+        yield invocation_resource
+    finally:
+        # Note: Invocations are automatically cleaned up when the session is deleted
+        # So we don't need to explicitly delete them here
+        pass
 
 
 @pytest.mark.asyncio

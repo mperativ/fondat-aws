@@ -203,6 +203,31 @@ def prepared_flow(aws_session):
     return (flow.flow_id, alias.alias_id)
 
 
+@pytest.fixture(autouse=True)
+async def cleanup_sessions(aws_session):
+    """
+    Fixture that automatically cleans up all sessions after each test.
+    This ensures no sessions are left behind from test runs.
+    """
+    yield
+    
+    try:
+        from tests.bedrock.unit.test_config import TEST_AGENT_ID
+        resource = aws_session.agents
+        agent_id = TEST_AGENT_ID
+        
+        sessions_page = await resource[agent_id].sessions.get(max_results=100)
+        for session_summary in sessions_page.items:
+            try:
+                session_resource = resource[agent_id].sessions[session_summary.session_id]
+                await session_resource.delete()
+            except Exception as e:
+                logger.warning(f"Failed to delete session {session_summary.session_id}: {e}")
+                
+    except Exception as e:
+        logger.warning(f"Error during session cleanup: {e}")
+
+
 @pytest.fixture
 async def session(agent):
     """Create a session and tear it down automatically."""
@@ -210,8 +235,11 @@ async def session(agent):
     try:
         yield s
     finally:
-        sr = agent.sessions[s.sessionId]
-        await sr.delete()
+        try:
+            sr = agent.sessions[s.sessionId]
+            await sr.delete()
+        except Exception as e:
+            logger.warning(f"Failed to delete test session {s.sessionId}: {e}")
 
 
 def pytest_addoption(parser):

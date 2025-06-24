@@ -24,10 +24,15 @@ async def test_list_sessions(aws_session):
     resource = ctx.agents
 
     agent_id = TEST_AGENT_ID
-    # list sessions
-    sessions_page = await resource[agent_id].sessions.get(max_results=5)
-    assert sessions_page.items and hasattr(sessions_page.items[0], "session_id")
-    logger.info(f"Found {len(sessions_page.items)} sessions")
+    session = await resource[agent_id].sessions.create()
+    assert session.session_status == "ACTIVE"
+    
+    try:
+        sessions_page = await resource[agent_id].sessions.get(max_results=5)
+        assert sessions_page.items and hasattr(sessions_page.items[0], "session_id")
+        logger.info(f"Found {len(sessions_page.items)} sessions")
+    finally:
+        await resource[agent_id].sessions[session.session_id].delete()
 
 
 @pytest.mark.asyncio
