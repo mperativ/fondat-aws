@@ -223,7 +223,7 @@ class FlowResource:
         Args:
             input_content: The input content to process. Can be:
                 - A string for text input
-                - A dictionary for JSON input (will be converted to string)
+                - A dictionary for JSON input (will be sent as object)
             flowAliasIdentifier: The unique identifier of the flow alias
             nodeName: Optional name of the node to start from. Defaults to "input"
             nodeInputName: Optional name of the node input
@@ -235,14 +235,11 @@ class FlowResource:
         Returns:
             FlowInvocation: Information about the flow invocation
         """
-        str_content = (
-            input_content if isinstance(input_content, str) else json.dumps(input_content)
-        )
 
         params = {
             "flowIdentifier": self._flow_id,
             "flowAliasIdentifier": flowAliasIdentifier,
-            "inputs": [{"nodeName": nodeName, "content": {"document": str_content}}],
+            "inputs": [{"nodeName": nodeName, "content": {"document": input_content}}],
             "enableTrace": enableTrace,
         }
         if nodeInputName is not None:
