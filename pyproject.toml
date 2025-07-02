@@ -26,7 +26,9 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-aiobotocore = "^2.4"
+boto3 = "^1.28.0"
+botocore = "^1.31.0"
+aiobotocore = { version = ">=2.5.0", extras = ["awscli-plugin-endpoint"] }
 python = "^3.10"
 fondat = "^4.0.9"
 
@@ -37,6 +39,8 @@ pre-commit = "^2.20"
 pytest = "^7.1"
 pytest-asyncio = "^0.19"
 pytest-cov = "^3.0"
+vcrpy = "^7.0.0"
+pytest-vcr = "^1.0.2"
 
 [tool.isort]
 profile = "black"
