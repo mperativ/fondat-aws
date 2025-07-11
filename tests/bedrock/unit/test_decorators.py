@@ -8,6 +8,7 @@ from fondat.aws.bedrock.decorators import operation
 
 @resource
 class TestResource:
+    __test__ = False
     def __init__(self, policies=None):
         self.policies = policies
 

@@ -210,7 +210,7 @@ class FlowResource:
         input_content: str | dict,
         flowAliasIdentifier: str,
         *,
-        nodeName: str = "input",
+        nodeName: str = "FlowInputNode",
         nodeInputName: str | None = None,
         nodeOutputName: str | None = None,
         enableTrace: bool = False,
@@ -239,7 +239,7 @@ class FlowResource:
         params = {
             "flowIdentifier": self._flow_id,
             "flowAliasIdentifier": flowAliasIdentifier,
-            "inputs": [{"nodeName": nodeName, "content": {"document": input_content}}],
+            "inputs": [{"content": {"document": input_content}, "nodeName": nodeName}],
             "enableTrace": enableTrace,
         }
         if nodeInputName is not None:
