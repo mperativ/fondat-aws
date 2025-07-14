@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
 
+import fondat.error
 from fondat.aws.bedrock.domain import (
     VersionSummary,
     AliasSummary,
@@ -84,9 +85,9 @@ async def test_generic_version_resource_missing_required_fields(mock_agent_clien
     mock_agent_client.get_agent_version.return_value = mock_response
 
     # Execute and verify
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(fondat.error.BadRequestError) as exc_info:
         await resource.get()
-    assert "Missing required fields" in str(exc_info.value)
+    assert "Missing required fields" in str(exc_info.value.__cause__)
 
 
 @pytest.mark.asyncio
@@ -146,9 +147,9 @@ async def test_generic_alias_resource_missing_required_fields(mock_agent_client)
     mock_agent_client.get_agent_alias.return_value = mock_response
 
     # Execute and verify
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(fondat.error.BadRequestError) as exc_info:
         await resource.get()
-    assert "Missing required fields" in str(exc_info.value)
+    assert "Missing required fields" in str(exc_info.value.__cause__)
 
 
 @pytest.mark.asyncio

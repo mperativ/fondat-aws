@@ -5,6 +5,7 @@ from fondat.pagination import Page
 
 @dataclass
 class TestItem:
+    __test__ = False
     id: str
     name: str
 
