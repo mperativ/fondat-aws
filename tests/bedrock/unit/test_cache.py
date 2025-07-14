@@ -13,6 +13,7 @@ T = TypeVar("T")
 
 @dataclass
 class TestItem:
+    __test__ = False
     id: str
     name: str
 
