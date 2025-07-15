@@ -1,8 +1,8 @@
 """Resource for managing agent flows."""
 
-import json
+import sys
 from collections.abc import Iterable
-
+from fondat.aws.bedrock.resources.streams import FlowStream
 from fondat.aws.bedrock.utils import convert_dict_keys_to_snake_case
 from fondat.aws.client import Config, wrap_client_error
 from fondat.aws.bedrock.domain import Flow, FlowInvocation, FlowSummary
@@ -216,7 +216,8 @@ class FlowResource:
         enableTrace: bool = False,
         executionId: str | None = None,
         modelPerformanceConfiguration: dict | None = None,
-    ) -> FlowInvocation:
+        stream: bool = False,
+    ) -> FlowInvocation | FlowStream:
         """
         Invoke the flow with the given input.
 
@@ -252,9 +253,38 @@ class FlowResource:
             params["modelPerformanceConfiguration"] = {
                 "performanceConfig": modelPerformanceConfiguration
             }
-        async with runtime_client(self.config_runtime) as client:
+
+        client_cm = runtime_client(self.config_runtime)
+        client = await client_cm.__aenter__()
+        try:
             with wrap_client_error():
                 response = await client.invoke_flow(**params)
-                flow_data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
-                flow_data = convert_dict_keys_to_snake_case(flow_data)
-                return FlowInvocation(**flow_data)
+
+            if stream:
+                # ----------- STREAMING MODE -----------
+                return FlowStream(response, client_cm)
+
+            # ----------- BUFFERED MODE (default) -----------
+            stream_obj = response.get("responseStream")
+            events: list[dict] = []
+
+            if hasattr(stream_obj, "__aiter__"):
+                async for event in stream_obj:  # type: ignore
+                    events.append(event)
+            else:
+                for event in stream_obj:  # type: ignore
+                    events.append(event)
+
+            flow_data = {
+                k: v for k, v in response.items() if k != "ResponseMetadata"
+            }
+            flow_data = convert_dict_keys_to_snake_case(flow_data)
+            flow_data["response_stream"] = events
+
+            # close session now that we don't need the stream anymore
+            await client_cm.__aexit__(None, None, None)
+            return FlowInvocation(**flow_data)
+
+        except Exception:
+            await client_cm.__aexit__(*sys.exc_info())
+            raise
