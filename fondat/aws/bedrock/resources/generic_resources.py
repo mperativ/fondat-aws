@@ -271,17 +271,14 @@ class VersionResource(Generic[VT]):
     def _map_response_fields(self, response_data: dict[str, Any]) -> dict[str, Any]:
         """Map response fields according to resource type."""
         mapping = self._get_field_mappings()
-        print(f"\nField mappings: {mapping}")
         # map only present fields (dest_field ← response_data[src_field])
         mapped = {
             dest: response_data[src] if src in response_data else None
             for dest, src in mapping.items()
         }
-        print(f"\nMapped fields: {mapped}")
 
         # validate that *destination* keys are all present
         required = self._get_required_fields()
-        print(f"\nRequired fields: {required}")
         missing = set(required) - mapped.keys()
         if missing:
             raise ValueError(f"Missing required fields for {self.id_field}: {sorted(missing)}")
@@ -301,11 +298,8 @@ class VersionResource(Generic[VT]):
         async with agent_client(self.config) as client:
             response = await getattr(client, self.get_method)(**params)
             data = {k: v for k, v in response.items() if k != "ResponseMetadata"}
-            print(f"\nAPI Response data: {data}")
             data = convert_dict_keys_to_snake_case(data)
-            print(f"\nAfter snake_case conversion: {data}")
             mapped = self._map_response_fields(data)
-            print(f"\nAfter mapping: {mapped}")
             return self._dto_type(**mapped)
 
 
@@ -410,9 +404,7 @@ class GenericAliasResource:
 
         async with agent_client(self.config) as client:
             resp = await getattr(client, self.list_method)(**params)
-            print(f"\nAPI Response: {resp}")
             field_mapping = self._get_field_mapping()
-            print(f"\nField mapping: {field_mapping}")
             return paginate(
                 resp=resp,
                 items_key=self.items_key,

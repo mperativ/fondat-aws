@@ -112,3 +112,41 @@ async def test_flow_cache(flows_resource):
         assert page1.items == page2.items
     except Exception as e:
         pytest.fail(f"Failed to test flow cache: {str(e)}")
+
+
+@pytest.mark.asyncio
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invoke_flow_streaming.yaml")
+async def test_invoke_flow_streaming(flow_resource):
+    """Test invoking a flow with streaming response."""
+    try:
+        aliases = await flow_resource.aliases.get(max_results=1)
+        if not aliases.items:
+            pytest.skip("No aliases available for flow")
+        alias = aliases.items[0].alias_id
+    
+        response = await flow_resource.invoke_streaming(
+            input_content="Write a short poem about testing.",
+            flowAliasIdentifier=alias,
+            nodeName="FlowInputNode",
+            nodeOutputName="document",
+        )
+        
+        # Verify we got a FlowStream object
+        assert hasattr(response, "__aiter__"), "Response should be an async iterator"
+        assert hasattr(response, "close"), "Response should have close method"
+        
+        # Process the stream
+        events = []
+        async with response as stream:
+            async for event in stream:
+                events.append(event)
+        
+        # Verify we got some events
+        assert len(events) > 0, "Should receive streaming events"
+        
+        # Verify event structure (basic validation)
+        for event in events:
+            assert isinstance(event, dict), "Each event should be a dictionary"
+            
+    except Exception as e:
+        pytest.fail(f"Failed to test flow streaming: {str(e)}")

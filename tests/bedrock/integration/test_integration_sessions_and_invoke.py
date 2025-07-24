@@ -68,13 +68,14 @@ async def test_invoke_flow(aws_session):
     alias = aliases.items[0].alias_id
     session = await resource[agent_id].sessions.create()
     try:
-        response = await flows[flow.flow_id].invoke(
+        response = await flows[flow.flow_id].invoke_buffered(
             input_content="Write a poem in English about 'The Name of the Rose'. Make it thoughtful and insightful.",
             flowAliasIdentifier=alias,
             nodeName="FlowInputNode",
             nodeOutputName="document",
         )
-        assert hasattr(response, "response_stream"), "No response_stream on invoke"
+        assert hasattr(response, "response_stream"), "No response_stream on invoke_buffered"
+        assert isinstance(response.response_stream, list), "response_stream should be a list"
     finally:
         sr = resource[agent_id].sessions[session.session_id]
         await sr.delete()
@@ -167,3 +168,44 @@ async def test_invoke_agent(aws_session):
         sr = resource[agent_id].sessions[session.session_id]
         await sr.delete()
     logger.info("Agent invocation completed")
+
+
+@pytest.mark.asyncio
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invoke_flow_streaming.yaml")
+async def test_invoke_flow_streaming(aws_session):
+    """Test invoking a flow with streaming response and cleanup session."""
+    resource = aws_session.agents
+    agent_id = TEST_AGENT_ID
+    flows = flows_resource(
+        config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime
+    )
+    flows_page = await flows.get(max_results=5)
+    flow = flows_page.items[0]
+    aliases = await flows[flow.flow_id].aliases.get(max_results=1)
+    alias = aliases.items[0].alias_id
+    session = await resource[agent_id].sessions.create()
+    try:
+        response = await flows[flow.flow_id].invoke_streaming(
+            input_content="Write a short poem about streaming responses.",
+            flowAliasIdentifier=alias,
+            nodeName="FlowInputNode",
+            nodeOutputName="document",
+        )
+        
+        # Verify we got a FlowStream object
+        assert hasattr(response, "__aiter__"), "Response should be an async iterator"
+        
+        # Process the streaming response
+        events = []
+        async with response as stream:
+            async for event in stream:
+                events.append(event)
+                logger.info(f"Received streaming event: {type(event).__name__}")
+        
+        assert len(events) > 0, "Should receive streaming events"
+        logger.info(f"Received {len(events)} streaming events")
+        
+    finally:
+        sr = resource[agent_id].sessions[session.session_id]
+        await sr.delete()
+    logger.info("Flow streaming invocation completed")
