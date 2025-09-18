@@ -76,7 +76,7 @@ class AgentResource:
                 return Agent(**data)
 
     @operation(method="post", policies=lambda self: self.policies)
-    async def invoke(
+    async def invoke_buffered(
         self,
         inputText: str,
         sessionId: str | None,
@@ -111,7 +111,7 @@ class AgentResource:
         """
         if sessionId is None:
             session = await self.sessions.create()
-            sessionId = session["sessionId"]
+            sessionId = session.session_id
 
         params = {
             "agentId": self._id,
@@ -176,7 +176,7 @@ class AgentResource:
         """
         if sessionId is None:
             session = await self.sessions.create()
-            sessionId = session["sessionId"]
+            sessionId = session.session_id
 
         params = {
             "agentId": self._id,
