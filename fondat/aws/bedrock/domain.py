@@ -467,7 +467,7 @@ class InvocationStepSummary(_HasResource["StepResource"]):  # noqa: D101
 @dataclass
 class ActionGroupExecutor:  # noqa: D101
     custom_control: Literal["RETURN_CONTROL"]
-    lambda_: str = field(metadata={"alias": "lambda"})
+    lambda_: Optional[str] = field(default=None, metadata={"alias": "lambda"})
 
 
 @dataclass

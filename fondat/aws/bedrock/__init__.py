@@ -14,6 +14,7 @@ AgentsResource                                              # /agents
 └── [agent_id] → AgentResource                              # /agents/{agent_id}
     ├── .get()                                              # Get agent
     ├── .invoke()                                           # Invoke agent (run-time)
+    ├── .invoke_streaming()                                 # Invoke agent with streaming response
     ├── versions → VersionsResource                         # /agents/{agent_id}/versions
     │   ├── .get()                                          # List agent versions
     │   └── [version_id] → AgentVersion                     # Get agent version
@@ -56,7 +57,8 @@ FlowsResource                                               # /flows
 ├── .get()                                                  # List flows
 └── [id] → FlowResource                                     # /flows/{id}
     ├── .get()                                              # Get flow
-    ├── .invoke()                                           # Invoke flow (run-time)
+    ├── .invoke_buffered()                                  # Invoke flow (buffered response)
+    ├── .invoke_streaming()                                 # Invoke flow (streaming response)
     ├── versions → VersionsResource                         # /flows/{id}/versions
     │   ├── .get()                                          # List flow versions
     │   └── [version_id] → FlowVersion                      # Get flow version
