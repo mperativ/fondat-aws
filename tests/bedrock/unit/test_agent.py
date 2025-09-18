@@ -3,7 +3,7 @@ from datetime import datetime
 from fondat.aws.bedrock.domain import Agent
 from fondat.aws.bedrock.resources.agent import AgentResource
 from fondat.aws.bedrock.resources.streams import AgentStream
-from tests.bedrock.unit.conftest import my_vcr
+from tests.bedrock.unit.conftest import my_vcr, force_record_vcr
 from tests.bedrock.unit.test_config import TEST_AGENT_ID, TEST_AGENT_ALIAS_ID
 
 
@@ -13,6 +13,7 @@ def agent_resource(config):
     return AgentResource(
         agent_id=TEST_AGENT_ID,
         config_agent=config,
+        config_runtime=config,
     )
 
 
@@ -40,7 +41,7 @@ async def test_get_agent(agent_resource):
 
 
 @pytest.mark.asyncio
-@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invoke_agent_streaming.yaml")
+@pytest.mark.vcr(vcr=force_record_vcr, cassette_name="test_invoke_agent_streaming.yaml")
 async def test_invoke_agent_streaming(agent_resource):
     """Test invoking an agent with streaming response."""
     try:
