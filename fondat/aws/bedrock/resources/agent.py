@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 
-from fondat.aws.bedrock.domain import Agent, AgentInvocation, Invocation
+from fondat.aws.bedrock.domain import Agent, AgentInvocation
 from fondat.aws.bedrock.resources.aliases import AliasesResource
 from fondat.aws.client import Config, wrap_client_error
 from fondat.resource import resource
@@ -17,7 +17,6 @@ from .versions import VersionsResource
 from .generic_resources import GenericAliasResource
 from .action_groups import ActionGroupsResource
 from .collaborators import CollaboratorsResource
-from .flows import FlowsResource
 from .sessions import SessionsResource
 from .memory import MemoryResource
 from .streams import AgentStream
