@@ -2,18 +2,17 @@ from collections.abc import AsyncIterator
 from types import TracebackType
 from typing import Any, Optional, Type
 
-class FlowStream(AsyncIterator[dict]):
+class BaseStream(AsyncIterator[dict]):
     """
-    Async iterator that keeps the underlying runtime_client session alive
-    until the caller finishes iterating, then closes it cleanly.
+    Shared async iterator/context manager for Bedrock event streams.
+    Subclasses provide the stream key present in the response dict.
     """
 
-    def __init__(self, response: dict, client_cm):
-        # response is the original dict returned by invoke_flow
+    def __init__(self, response: dict, client_cm, stream_key: str):
         self._response = response
         self._client_cm = client_cm
         self._closed = False
-        stream = response.get("responseStream")
+        stream = response.get(stream_key)
         if hasattr(stream, "__aiter__"):
             # Async iterator (aiobotocore)
             self._stream_async = True
@@ -61,61 +60,19 @@ class FlowStream(AsyncIterator[dict]):
             self._closed = True
 
 
-class AgentStream(AsyncIterator[dict]):
+class FlowStream(BaseStream):
     """
-    Async iterator that keeps the underlying runtime_client session alive
-    until the caller finishes iterating, then closes it cleanly.
-    Handles agent completion streams from invoke_agent.
+    Async iterator for flow streams from invoke_flow.
     """
 
     def __init__(self, response: dict, client_cm):
-        # response is the original dict returned by invoke_agent
-        self._response = response
-        self._client_cm = client_cm
-        self._closed = False
-        stream = response.get("completion")
-        if hasattr(stream, "__aiter__"):
-            # Async iterator (aiobotocore)
-            self._stream_async = True
-            self._async_iter = stream.__aiter__()
-        else:
-            # Sync iterator (botocore EventStream)
-            self._stream_async = False
-            self._sync_iter = iter(stream)
+        super().__init__(response, client_cm, "responseStream")
 
-    # ------------- async iterator protocol -------------
-    def __aiter__(self):
-        return self
 
-    async def __anext__(self):
-        try:
-            if self._stream_async:
-                # Async iteration
-                return await self._async_iter.__anext__()
-            else:
-                # Sync iteration
-                return next(self._sync_iter)
-        except (StopAsyncIteration, StopIteration):
-            # auto-close when stream ends
-            await self.close()
-            raise StopAsyncIteration
+class AgentStream(BaseStream):
+    """
+    Async iterator for agent completion streams from invoke_agent.
+    """
 
-    # ------------- async context-manager helpers -------------
-    async def __aenter__(self):
-        # let users do:  async with stream as s:
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc: Optional[BaseException],
-        tb: Optional[TracebackType],
-    ):
-        await self.close()
-
-    # ------------- public helper -------------
-    async def close(self):
-        """Close the underlying aiohttp session if not already closed."""
-        if not self._closed:
-            await self._client_cm.__aexit__(None, None, None)
-            self._closed = True
+    def __init__(self, response: dict, client_cm):
+        super().__init__(response, client_cm, "completion")
