@@ -13,8 +13,8 @@ AgentsResource                                              # /agents
 ├── .get()                                                  # List agents
 └── [agent_id] → AgentResource                              # /agents/{agent_id}
     ├── .get()                                              # Get agent
-    ├── .invoke()                                           # Invoke agent (run-time)
-    ├── .invoke_streaming()                                 # Invoke agent with streaming response
+    ├── .invoke_buffered()                                  # Invoke agent (buffered response)
+    ├── .invoke_streaming()                                 # Invoke agent (streaming response)
     ├── versions → VersionsResource                         # /agents/{agent_id}/versions
     │   ├── .get()                                          # List agent versions
     │   └── [version_id] → AgentVersion                     # Get agent version
