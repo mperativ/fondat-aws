@@ -4,7 +4,12 @@ import logging
 from datetime import datetime, timezone
 from tests.bedrock.integration.conftest import my_vcr
 from fondat.aws.bedrock import agents_resource, flows_resource
-from tests.bedrock.unit.test_config import TEST_AGENT_ID, TEST_AGENT_ALIAS_ID
+from tests.bedrock.unit.test_config import (
+    TEST_AGENT_ID,
+    TEST_AGENT_ALIAS_ID,
+    TEST_FLOW_ID,
+    TEST_FLOW_ALIAS_ID,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +67,11 @@ async def test_invoke_flow(aws_session):
     flows = flows_resource(
         config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime
     )
-    flows_page = await flows.get(max_results=5)
-    flow = flows_page.items[0]
-    aliases = await flows[flow.flow_id].aliases.get(max_results=1)
-    alias = aliases.items[0].alias_id
+    flow_id = TEST_FLOW_ID
+    alias = TEST_FLOW_ALIAS_ID
     session = await resource[agent_id].sessions.create()
     try:
-        response = await flows[flow.flow_id].invoke_buffered(
+        response = await flows[flow_id].invoke_buffered(
             input_content="Write a poem in English about 'The Name of the Rose'. Make it thoughtful and insightful.",
             flowAliasIdentifier=alias,
             nodeName="FlowInputNode",
@@ -179,13 +182,11 @@ async def test_invoke_flow_streaming(aws_session):
     flows = flows_resource(
         config_agent=aws_session.config_agent, config_runtime=aws_session.config_runtime
     )
-    flows_page = await flows.get(max_results=5)
-    flow = flows_page.items[0]
-    aliases = await flows[flow.flow_id].aliases.get(max_results=1)
-    alias = aliases.items[0].alias_id
+    flow_id = TEST_FLOW_ID
+    alias = TEST_FLOW_ALIAS_ID
     session = await resource[agent_id].sessions.create()
     try:
-        response = await flows[flow.flow_id].invoke_streaming(
+        response = await flows[flow_id].invoke_streaming(
             input_content="Write a short poem about streaming responses.",
             flowAliasIdentifier=alias,
             nodeName="FlowInputNode",
@@ -209,3 +210,39 @@ async def test_invoke_flow_streaming(aws_session):
         sr = resource[agent_id].sessions[session.session_id]
         await sr.delete()
     logger.info("Flow streaming invocation completed")
+
+
+@pytest.mark.asyncio
+@pytest.mark.vcr(vcr=my_vcr, cassette_name="test_invoke_agent_streaming.yaml")
+async def test_invoke_agent_streaming(aws_session):
+    """Test invoking an agent with streaming response and cleanup session."""
+    resource = aws_session.agents
+    agent_id = TEST_AGENT_ID
+    alias = TEST_AGENT_ALIAS_ID
+    session = await resource[agent_id].sessions.create()
+    try:
+        response = await resource[agent_id].invoke_streaming(
+            inputText="Write a short poem about streaming responses.",
+            sessionId=session.session_id,
+            agentAliasId=alias,
+            enableTrace=True
+        )
+        
+        # Verify we got an AgentStream object
+        assert hasattr(response, "__aiter__"), "Response should be an async iterator"
+        
+        # Process the streaming response
+        events = []
+        async with response as stream:
+            async for event in stream:
+                events.append(event)
+                logger.info(f"Received streaming event: {type(event).__name__}")
+        
+        assert len(events) > 0, "Should receive streaming events"
+        logger.info(f"Received {len(events)} streaming events")
+        
+    finally:
+        # Cleanup
+        sr = resource[agent_id].sessions[session.session_id]
+        await sr.delete()
+    logger.info("Agent streaming invocation completed")
