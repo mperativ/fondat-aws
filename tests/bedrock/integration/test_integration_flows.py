@@ -48,8 +48,8 @@ async def test_get_flow_version(aws_session):
     )
     page = await flows.get(max_results=1)
     flow = await flows[page.items[0].flow_id].get()
-    versions = await flows[flow.flow_id].versions.get(max_results=1)
-    version = await flows[flow.flow_id].versions["1"].get()
+    # Use DRAFT to avoid relying on numeric version availability
+    version = await flows[flow.flow_id].versions["DRAFT"].get()
     assert version.version_id is not None
     assert version.flow_name is not None
     assert version.created_at is not None

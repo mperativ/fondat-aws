@@ -123,8 +123,10 @@ async def test_unit_action_group_properties(aws_ctx):
     )
     assert action_group.action_group_id == action_group_id
     assert action_group.action_group_name is not None
-    # Description and api_schema are optional
-    assert action_group.function_schema is not None
+    # function_schema is optional; if present, basic validation
+    if action_group.function_schema is not None:
+        assert isinstance(action_group.function_schema, FunctionSchema)
+        assert isinstance(action_group.function_schema.functions, list)
 
 
 @pytest.mark.usefixtures("patch_aiobotocore_to_boto3")

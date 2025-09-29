@@ -42,7 +42,8 @@ def get_vcr(force_record=False):
 
     return vcr.VCR(
         cassette_library_dir=str(CASSETTE_DIR),
-        record_mode="none" if os.getenv("CI") else ("once" if force_record else "new_episodes"),
+        # In local runs, force_record=True should record; use 'all' to re-record
+        record_mode="none" if os.getenv("CI") else ("all" if force_record else "new_episodes"),
         match_on=["uri", "method"],
         filter_headers=[
             "authorization",
@@ -97,21 +98,14 @@ def config():
     session = boto3.Session(profile_name=profile, region_name=region)
     credentials = session.get_credentials()
 
-    # If no credentials are available, use mock credentials
-    if not credentials:
-        return Config(
-            region_name=region,
-            aws_access_key_id="DUMMY_ACCESS_KEY",
-            aws_secret_access_key="DUMMY_SECRET_KEY",
-            aws_session_token="DUMMY_SESSION_TOKEN",
-        )
+    # Prefer using the profile so botocore can auto-refresh SSO credentials.
+    if profile:
+        return Config(profile=profile, region_name=region)
 
-    return Config(
-        region_name=region,
-        aws_access_key_id=credentials.access_key,
-        aws_secret_access_key=credentials.secret_key,
-        aws_session_token=credentials.token,
-    )
+    # Fallbacks
+    if not credentials:
+        return Config(region_name=region)
+    return Config(region_name=region)
 
 
 @pytest.fixture(scope="session")

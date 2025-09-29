@@ -28,7 +28,13 @@ def patch_aiobotocore_to_boto3(monkeypatch):
 
     @asynccontextmanager
     async def create_sync_client(self, service_name, **kwargs):
-        sess = boto3.Session(region_name=kwargs.get("region_name"))
+        # Use AWS_PROFILE if available to ensure valid credentials and SSO refresh
+        profile = os.getenv("AWS_PROFILE")
+        region = kwargs.get("region_name")
+        if profile:
+            sess = boto3.Session(profile_name=profile, region_name=region)
+        else:
+            sess = boto3.Session(region_name=region)
         try:
             yield AsyncClientWrapper(sess.client(service_name, **kwargs))
         finally:
